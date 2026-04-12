@@ -41,9 +41,36 @@ class ClickAccessibilityService : AccessibilityService() {
         performGlobalAction(GLOBAL_ACTION_BACK)
     }
 
+    fun forceScrollToBottom() {
+        val rootNode = rootInActiveWindow ?: return
+        val scrollableNode = findScrollableNode(rootNode)
+        if (scrollableNode != null) {
+            // On scrolle plusieurs fois pour être sûr d'atteindre la fin
+            for (i in 0..3) {
+                scrollableNode.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+            }
+            scrollableNode.recycle()
+        } else {
+            // Swipe manuel de bas en haut (très ample)
+            val path = Path()
+            val metrics = resources.displayMetrics
+            val centerX = metrics.widthPixels / 2f
+            val startY = metrics.heightPixels * 0.9f
+            val endY = metrics.heightPixels * 0.1f
+            path.moveTo(centerX, startY)
+            path.lineTo(centerX, endY)
+            val builder = GestureDescription.Builder()
+            builder.addStroke(GestureDescription.StrokeDescription(path, 0, 500))
+            dispatchGesture(builder.build(), null, null)
+        }
+    }
+
     fun pasteText(text: String) {
         val rootNode = rootInActiveWindow ?: return
-        val focusedNode = rootNode.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+        // On cherche d'abord le nœud qui a le focus ou un champ éditable
+        val focusedNode = rootNode.findFocus(AccessibilityNodeInfo.FOCUS_INPUT) 
+            ?: findEditableNode(rootNode)
+        
         if (focusedNode != null) {
             val arguments = Bundle()
             arguments.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
@@ -52,26 +79,14 @@ class ClickAccessibilityService : AccessibilityService() {
         }
     }
 
-    fun scrollDown() {
-        val rootNode = rootInActiveWindow ?: return
-        // On cherche le premier élément scrollable
-        val scrollableNode = findScrollableNode(rootNode)
-        if (scrollableNode != null) {
-            scrollableNode.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
-            scrollableNode.recycle()
-        } else {
-            // Si on ne trouve pas de noeud scrollable, on tente un geste de swipe manuel
-            val path = Path()
-            val metrics = resources.displayMetrics
-            val centerX = metrics.widthPixels / 2f
-            val startY = metrics.heightPixels * 0.8f
-            val endY = metrics.heightPixels * 0.2f
-            path.moveTo(centerX, startY)
-            path.lineTo(centerX, endY)
-            val builder = GestureDescription.Builder()
-            builder.addStroke(GestureDescription.StrokeDescription(path, 0, 500))
-            dispatchGesture(builder.build(), null, null)
+    private fun findEditableNode(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        if (root.className?.contains("EditText", true) == true) return root
+        for (i in 0 until root.childCount) {
+            val child = root.getChild(i) ?: continue
+            val result = findEditableNode(child)
+            if (result != null) return result
         }
+        return null
     }
 
     private fun findScrollableNode(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {

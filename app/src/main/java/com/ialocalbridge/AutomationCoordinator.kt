@@ -17,34 +17,36 @@ class AutomationCoordinator(private val context: Context) {
 
         // 1. Cliquer sur la barre de texte pour donner le focus
         service.clickAt(coords.textFieldX, coords.textFieldY)
-        delay(800)
+        delay(600)
 
-        // 2. Coller le texte
+        // 2. Coller le texte directement sans simuler de touches clavier
         service.pasteText(question)
-        delay(500)
+        delay(400)
 
-        // 3. Fermer le clavier pour ne pas gêner les futurs clics
+        // 3. Fermer IMMÉDIATEMENT le clavier s'il s'est ouvert (mesure de sécurité)
         service.closeKeyboard()
-        delay(500)
+        delay(600)
 
-        // 4. Cliquer sur Envoyer
+        // 4. Cliquer sur Envoyer (après fermeture du clavier, les coordonnées sont stables)
         service.clickAt(coords.sendButtonX, coords.sendButtonY)
         
-        // 5. Attendre la fin de la génération
+        // 5. Attendre la fin de la génération (7s par défaut)
         delay(coords.delayAfterSendMs)
 
-        // 6. Faire défiler plusieurs fois pour être sûr d'arriver au dernier message
-        service.scrollDown()
-        delay(800)
-        service.scrollDown()
-        delay(800)
+        // 6. Fermer le clavier si jamais il s'est ré-ouvert (parfois l'app d'IA le fait après l'envoi)
+        service.closeKeyboard()
+        delay(400)
 
-        // 7. Cliquer sur le bouton copier
+        // 7. Défilement agressif vers la fin de la page
+        service.forceScrollToBottom()
+        delay(1000)
+
+        // 8. Cliquer sur le bouton copier
         service.clickAt(coords.copyButtonX, coords.copyButtonY)
         delay(800)
 
-        // 8. Récupérer le contenu du presse-papier
+        // 9. Récupérer le contenu du presse-papier
         val result = ClipboardHelper.getFromClipboard(context)
-        return if (result.isEmpty()) "Erreur: Le presse-papier est vide ou la copie a échoué" else result
+        return if (result.isEmpty()) "Erreur: Le presse-papier est vide. L'IA n'a peut-être pas terminé ou le bouton copier est invisible." else result
     }
 }
