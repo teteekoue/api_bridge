@@ -14,6 +14,7 @@ import android.os.IBinder
 import android.view.*
 import android.widget.*
 import androidx.core.app.NotificationCompat
+import com.ialocalbridge.R
 
 class FloatingWindowService : Service() {
 

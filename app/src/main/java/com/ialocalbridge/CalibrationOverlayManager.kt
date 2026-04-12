@@ -8,6 +8,7 @@ import android.view.*
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
+import com.ialocalbridge.R
 import com.ialocalbridge.models.ProviderCoordinates
 
 class CalibrationOverlayManager(
