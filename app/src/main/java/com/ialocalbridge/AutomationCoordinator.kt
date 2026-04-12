@@ -14,39 +14,62 @@ class AutomationCoordinator(private val context: Context) {
     suspend fun processQuestion(question: String): String {
         val service = accessibilityService ?: return "Erreur: Service d'accessibilité non activé"
         val coords = calibrationManager.getCoordinates("default_provider")
+        val oldClipboard = ClipboardHelper.getFromClipboard(context)
 
-        // 1. Cliquer sur la barre de texte pour donner le focus
-        service.clickAt(coords.textFieldX, coords.textFieldY)
-        delay(600)
-
-        // 2. Coller le texte directement sans simuler de touches clavier
+        // 1. Injection du texte SANS CLIC (évite le clavier dans la plupart des cas)
+        service.findAndFocusEditable()
+        delay(200)
         service.pasteText(question)
-        delay(400)
+        delay(200)
 
-        // 3. Fermer IMMÉDIATEMENT le clavier s'il s'est ouvert (mesure de sécurité)
+        // 2. Fermeture préventive immédiate du clavier
         service.closeKeyboard()
-        delay(600)
+        delay(500)
 
-        // 4. Cliquer sur Envoyer (après fermeture du clavier, les coordonnées sont stables)
+        // 3. Clic sur Envoyer
         service.clickAt(coords.sendButtonX, coords.sendButtonY)
-        
-        // 5. Attendre la fin de la génération (7s par défaut)
-        delay(coords.delayAfterSendMs)
+        delay(1000) // On attend que la génération commence
 
-        // 6. Fermer le clavier si jamais il s'est ré-ouvert (parfois l'app d'IA le fait après l'envoi)
+        // 4. BOUCLE D'ATTENTE INTELLIGENTE (Attente de la fin de génération)
+        // On observe le bouton Envoyer. S'il est désactivé (Génération), on attend.
+        var isGenerating = true
+        var attempts = 0
+        while (isGenerating && attempts < 100) { // Timeout max ~25-30 secondes
+            val isButtonEnabled = service.isNodeEnabledAt(coords.sendButtonX, coords.sendButtonY)
+            if (isButtonEnabled) {
+                isGenerating = false
+            } else {
+                delay(300)
+                attempts++
+            }
+        }
+
+        // 5. Fermeture supplémentaire du clavier après génération (certaines apps le ré-ouvrent)
         service.closeKeyboard()
-        delay(400)
+        delay(300)
 
-        // 7. Défilement agressif vers la fin de la page
-        service.forceScrollToBottom()
-        delay(1000)
+        // 6. DÉFILEMENT EXTRÊME
+        for (i in 0..2) {
+            service.forceScrollToBottom()
+            delay(500)
+        }
 
-        // 8. Cliquer sur le bouton copier
-        service.clickAt(coords.copyButtonX, coords.copyButtonY)
-        delay(800)
+        // 7. BOUCLE DE COPIE (Vérification que le presse-papier a bien changé)
+        var finalResult = ""
+        for (i in 0..3) {
+            service.clickAt(coords.copyButtonX, coords.copyButtonY)
+            delay(1000)
+            val currentClipboard = ClipboardHelper.getFromClipboard(context)
+            if (currentClipboard.isNotEmpty() && currentClipboard != oldClipboard) {
+                finalResult = currentClipboard
+                break
+            }
+        }
 
-        // 9. Récupérer le contenu du presse-papier
-        val result = ClipboardHelper.getFromClipboard(context)
-        return if (result.isEmpty()) "Erreur: Le presse-papier est vide. L'IA n'a peut-être pas terminé ou le bouton copier est invisible." else result
+        return if (finalResult.isEmpty()) {
+            "Erreur: Impossible de récupérer la réponse. La copie a échoué ou l'IA n'a rien renvoyé."
+        } else {
+            finalResult
+        }
     }
 }
