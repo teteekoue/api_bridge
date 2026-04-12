@@ -1,5 +1,6 @@
 package com.ialocalbridge
 
+import android.content.Context
 import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
 import com.ialocalbridge.utils.ClipboardHelper
@@ -22,7 +23,7 @@ class AutomationCoordinator(private val context: Context) { // CalibrationManage
             return "Erreur: Champ de texte non trouvé sur l'écran."
         }
         
-        // Focus on the editable node
+        // Focus on the editable node explicitly
         if (!textFieldNode.performAction(AccessibilityNodeInfo.ACTION_FOCUS)) {
              Log.w(TAG, "Failed to focus editable node. Proceeding with paste anyway.")
         }
@@ -31,9 +32,7 @@ class AutomationCoordinator(private val context: Context) { // CalibrationManage
         Log.d(TAG, "Pasting text...")
         if (!service.pasteText(question)) {
             Log.e(TAG, "Failed to paste text directly.")
-            // If direct paste fails, this is a critical failure for this approach.
-            // Previously, a fallback to clickAt(coords) was here, but we are removing coords.
-            // If pasteText fails, we must report an error.
+            // If direct paste fails, report error. No fallback to coords anymore.
             return "Erreur: Échec de l'injection de texte dans le champ."
         }
         delay(400)
