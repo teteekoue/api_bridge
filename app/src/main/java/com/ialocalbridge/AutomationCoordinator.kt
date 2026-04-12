@@ -17,28 +17,34 @@ class AutomationCoordinator(private val context: Context) {
 
         // 1. Cliquer sur la barre de texte pour donner le focus
         service.clickAt(coords.textFieldX, coords.textFieldY)
-        delay(500)
+        delay(800)
 
         // 2. Coller le texte
         service.pasteText(question)
         delay(500)
 
-        // 3. Cliquer sur Envoyer
+        // 3. Fermer le clavier pour ne pas gêner les futurs clics
+        service.closeKeyboard()
+        delay(500)
+
+        // 4. Cliquer sur Envoyer
         service.clickAt(coords.sendButtonX, coords.sendButtonY)
         
-        // 4. Attendre la fin de la génération (On utilise le délai calibré par défaut)
-        // Note: L'observation du bouton "Stop" pourrait être ajoutée ici
+        // 5. Attendre la fin de la génération
         delay(coords.delayAfterSendMs)
 
-        // 5. Faire défiler vers le bas (pour s'assurer que le bouton copier est visible)
+        // 6. Faire défiler plusieurs fois pour être sûr d'arriver au dernier message
         service.scrollDown()
-        delay(500)
+        delay(800)
+        service.scrollDown()
+        delay(800)
 
-        // 6. Cliquer sur le bouton copier
+        // 7. Cliquer sur le bouton copier
         service.clickAt(coords.copyButtonX, coords.copyButtonY)
-        delay(500)
+        delay(800)
 
-        // 7. Récupérer le contenu du presse-papier
-        return ClipboardHelper.getFromClipboard(context)
+        // 8. Récupérer le contenu du presse-papier
+        val result = ClipboardHelper.getFromClipboard(context)
+        return if (result.isEmpty()) "Erreur: Le presse-papier est vide ou la copie a échoué" else result
     }
 }
