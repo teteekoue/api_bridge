@@ -124,12 +124,12 @@ class FloatingWindowService : Service() {
         btnStartApi.setOnClickListener {
             if (!isServerRunning) {
                 try {
-                    apiServer = LocalApiServer(8080, this)
+                    apiServer = LocalApiServer(8888, this)
                     apiServer?.start()
                     isServerRunning = true
                     btnStartApi.text = "API: ON"
                     btnStartApi.setBackgroundColor(Color.GREEN)
-                    Toast.makeText(this, "Serveur démarré sur le port 8080", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Serveur démarré sur le port 8888", Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
                     Toast.makeText(this, "Erreur: ${e.message}", Toast.LENGTH_LONG).show()
                 }
