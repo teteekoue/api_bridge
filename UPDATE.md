@@ -1,29 +1,30 @@
-# Mise à jour IA-Local-Bridge v2.0
+# Mise à jour : Version Finale Stable (v2.0)
 
-Cette mise à jour apporte des améliorations majeures en termes de stabilité et de fonctionnalités.
+Cette version transforme le smartphone en une passerelle API robuste pour les IA mobiles grâce à une approche mécanique et morphologique.
 
-## Nouvelles Fonctionnalités
+## 🚀 Nouvelles Fonctionnalités & Améliorations
 
-1.  **Dashboard Web Intégré** :
-    *   Accessible à l'adresse `http://IP_DU_TELEPHONE:8080/`.
-    *   Interface de chat complète pour tester l'IA directement depuis un navigateur.
-    *   Section de configuration affichant l'URL de l'API prête à l'emploi.
-2.  **API Améliorée** :
-    *   Port par défaut : `8080`.
-    *   Support des méthodes **GET** et **POST**.
-    *   Support du **CORS** pour permettre les appels depuis des applications web tierces.
-3.  **Gestion de la Stabilité** :
-    *   **Anti-Clavier** : Le service ferme automatiquement le clavier après avoir collé le texte, évitant le décalage des coordonnées calibrées.
-    *   **Défilement Intelligent** : L'application effectue deux défilements vers le bas avant de copier pour s'assurer que le bouton de copie du dernier message est visible.
-    *   **Validation du Presse-papier** : Vérification plus stricte du contenu récupéré.
+### 1. Système de Calibration Intelligent
+*   **Calibration à 3 points uniquement** : Barre de texte, Bouton Envoyer, Bouton Copier.
+*   **Mode Défilement** : Pendant la calibration, un bouton permet de rendre l'overlay transparent pour manipuler l'application d'IA (ouvrir le clavier, défiler l'historique) avant de marquer les points.
+*   **Mémoire Morphologique** : Lors du clic sur le bouton "Copier", l'application enregistre son ADN technique (Resource ID, Classe Android, Description).
 
-## Instructions d'utilisation
+### 2. Détection de Fin de Génération "Physique"
+*   **Boucle de Stabilité (4s)** : L'application effectue un balayage (Swipe) long toutes les 4 secondes et compare le dernier texte visible en bas à droite de l'écran.
+*   **Verdict Mathématique** : Si le texte reste identique après un swipe, la génération est considérée comme terminée. Cela évite les erreurs liées aux signaux système bloqués.
 
-1.  Lancez l'application sur le téléphone.
-2.  Activez le service d'accessibilité.
-3.  Démarrez le serveur via la fenêtre flottante.
-4.  Ouvrez l'URL affichée dans le Toast (ex: `http://192.168.1.15:8080`) sur votre ordinateur.
-5.  Utilisez l'interface de chat ou l'URL `/ask?q=votre_question` pour vos intégrations.
+### 3. Capture de Réponse Haute Fiabilité
+*   **Swipe Ultime** : Une fois la fin détectée, un balayage final aligne parfaitement le dernier message.
+*   **Recherche Morphologique** : Si le clic aux coordonnées échoue, l'application utilise l'ADN enregistré pour retrouver le bouton Copier n'importe où sur l'écran.
+*   **Triple Retry avec "Secousse"** : En cas d'échec de copie, l'application fait un nouveau swipe pour forcer l'interface à rafraîchir ses boutons et réessaye jusqu'à 3 fois.
 
----
-*Note : Assurez-vous que le téléphone et l'ordinateur sont sur le même réseau Wi-Fi.*
+### 4. Serveur API Optimisé
+*   **Exécution sur Main Looper** : Toutes les actions d'automation sont forcées sur le thread principal d'Android, éliminant les erreurs de threading.
+*   **CORS & POST** : Support complet des requêtes cross-origin et parsing robuste du corps des messages.
+
+## 🛠️ Schéma de Fonctionnement
+1. **Réception** : Le serveur reçoit la question via HTTP POST.
+2. **Injection** : Clic barre -> Collage -> Touche Retour (ferme le clavier) -> Attente 1.2s -> Clic Envoyer.
+3. **Attente** : Boucle de Swipes longs (4s) jusqu'à stabilité du texte final.
+4. **Extraction** : Triple tentative de copie (Coordonnées + Morphologie) avec swipes de sécurité.
+5. **Réponse** : Le contenu du presse-papier est renvoyé à l'utilisateur.
