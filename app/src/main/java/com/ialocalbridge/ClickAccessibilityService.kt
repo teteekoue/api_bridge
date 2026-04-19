@@ -64,6 +64,10 @@ class ClickAccessibilityService : AccessibilityService() {
         }
     }
 
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        // Obligatoire pour AccessibilityService
+    }
+
     override fun onInterrupt() {
         Log.d(TAG, "Accessibility Service Interrupted")
         instance = null
