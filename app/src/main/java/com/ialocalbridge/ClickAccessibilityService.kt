@@ -220,17 +220,49 @@ class ClickAccessibilityService : AccessibilityService() {
         path.moveTo(x, y)
         val gestureBuilder = GestureDescription.Builder()
         gestureBuilder.addStroke(GestureDescription.StrokeDescription(path, 0, 100))
-        return dispatchGesture(gestureBuilder.build(), object : GestureResultCallback() {
-            override fun onCompleted(gestureDescription: GestureDescription?) {
-                super.onCompleted(gestureDescription)
-                Log.d(TAG, "Gesture completed successfully at ($x, $y)")
-            }
+        return dispatchGesture(gestureBuilder.build(), null, null)
+    }
 
-            override fun onCancelled(gestureDescription: GestureDescription?) {
-                super.onCancelled(gestureDescription)
-                Log.e(TAG, "Gesture cancelled at ($x, $y)")
+    fun performSwipe(startX: Float, startY: Float, endX: Float, endY: Float): Boolean {
+        Log.d(TAG, "Performing swipe from ($startX, $startY) to ($endX, $endY)")
+        val path = Path()
+        path.moveTo(startX, startY)
+        path.lineTo(endX, endY)
+        val gestureBuilder = GestureDescription.Builder()
+        gestureBuilder.addStroke(GestureDescription.StrokeDescription(path, 0, 500))
+        return dispatchGesture(gestureBuilder.build(), null, null)
+    }
+
+    fun findLastNodeByKeywords(keywords: List<String>): AccessibilityNodeInfo? {
+        val rootNode = rootInActiveWindow ?: return null
+        val matches = mutableListOf<AccessibilityNodeInfo>()
+        findNodesRecursiveWithKeywords(rootNode, keywords, matches)
+        
+        // On retourne le nœud le plus bas (Y maximum)
+        return if (matches.isNotEmpty()) {
+            val lastNode = matches.maxByOrNull { 
+                val rect = android.graphics.Rect()
+                it.getBoundsInScreen(rect)
+                rect.bottom 
             }
-        }, null)
+            // On recycle les autres
+            matches.forEach { if (it != lastNode) it.recycle() }
+            lastNode
+        } else null
+    }
+
+    private fun findNodesRecursiveWithKeywords(node: AccessibilityNodeInfo, keywords: List<String>, matches: MutableList<AccessibilityNodeInfo>) {
+        val text = node.text?.toString() ?: ""
+        val desc = node.contentDescription?.toString() ?: ""
+        
+        if (keywords.any { text.contains(it, ignoreCase = true) || desc.contains(it, ignoreCase = true) }) {
+            matches.add(AccessibilityNodeInfo.obtain(node))
+        }
+        
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i) ?: continue
+            findNodesRecursiveWithKeywords(child, keywords, matches)
+        }
     }
     
     // pasteText now uses the public findEditableNode()

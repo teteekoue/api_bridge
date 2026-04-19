@@ -21,62 +21,76 @@ class AutomationCoordinator(private val context: Context) {
         service.clickAt(coords.textFieldX, coords.textFieldY)
         delay(600)
         service.pasteText(question)
-        delay(800) // Laisser le temps au clavier de s'ouvrir complètement
+        delay(800)
 
         // 2. Fermer le clavier via l'action système (Touche Retour)
         Log.d(TAG, "Step 2: Closing keyboard via back action...")
         service.closeKeyboard()
-        delay(1200) // DÉLAI DE 1S (plus un peu de marge) pour que l'interface se replace
+        delay(1200)
 
         // 3. Cliquer sur le bouton envoyer
         Log.d(TAG, "Step 3: Clicking send button...")
-        service.resetEventTimer() // On remet le chrono à zéro juste avant
+        service.resetEventTimer()
         service.clickAt(coords.sendButtonX, coords.sendButtonY)
         
-        // 4. ATTENTE DE STABILITÉ (Détection de fin de génération via flux de données)
-        Log.d(TAG, "Step 4: Waiting for data flow stability (silence)...")
-        delay(2000) // On attend que la génération démarre vraiment
+        // 4. ATTENTE DE STABILITÉ (Fin de génération)
+        Log.d(TAG, "Step 4: Waiting for stability (3s silence)...")
+        delay(2000) // Attente démarrage
         
         var isStable = false
-        val stabilityThreshold = 3000L // 3 secondes de silence = fin de réponse
-        val timeoutMax = 120000L // 2 minutes max
+        val stabilityThreshold = 3500L // Augmenté pour plus de sûreté
+        val timeoutMax = 120000L
         val startTime = System.currentTimeMillis()
 
         while (!isStable && (System.currentTimeMillis() - startTime) < timeoutMax) {
             val idleTime = service.getTimeSinceLastUpdate()
             if (idleTime >= stabilityThreshold) {
-                Log.d(TAG, "Interface is stable for ${idleTime}ms. Generation finished.")
                 isStable = true
+                Log.d(TAG, "Interface stable.")
             } else {
                 delay(500)
             }
         }
         delay(1000)
 
-        // 5. Cliquer sur le bouton de bas pour descendre à l'extrême fin
-        Log.d(TAG, "Step 5: Scrolling to extreme bottom...")
-        service.clickAt(coords.scrollDownButtonX, coords.scrollDownButtonY)
+        // 5. TRIPLE SWIPE pour forcer le bas (Évite les bordures système)
+        Log.d(TAG, "Step 5: Performing Triple Swipe to bottom...")
+        val metrics = context.resources.displayMetrics
+        val centerX = metrics.widthPixels / 2f
+        val startY = metrics.heightPixels * 0.7f // Part du bas (au dessus des boutons système)
+        val endY = metrics.heightPixels * 0.3f   // Vers le haut
+        
+        repeat(3) {
+            service.performSwipe(centerX, startY, centerX, endY)
+            delay(400)
+        }
         delay(1000)
 
-        // 6. Cliquer sur le bouton copier
-        Log.d(TAG, "Step 6: Clicking copy button...")
+        // 6. COPIE INTELLIGENTE
+        Log.d(TAG, "Step 6: Attempting to copy response...")
         var finalResult = ""
-        for (i in 0..2) {
-            service.clickAt(coords.copyButtonX, coords.copyButtonY)
-            delay(1500) // Attente de mise à jour du presse-papier
-            val currentClipboard = ClipboardHelper.getFromClipboard(context)
-            if (currentClipboard.isNotEmpty() && currentClipboard != oldClipboard) {
-                finalResult = currentClipboard
-                Log.d(TAG, "Successfully copied and retrieved response.")
-                break
-            } else {
-                Log.d(TAG, "Clipboard update retry $i/2...")
+        
+        // Tentative 1 : Coordonnées calibrées
+        service.clickAt(coords.copyButtonX, coords.copyButtonY)
+        delay(1500)
+        finalResult = ClipboardHelper.getFromClipboard(context)
+        
+        // Tentative 2 : Recherche morphologique si le presse-papier n'a pas changé
+        if (finalResult == oldClipboard || finalResult.isEmpty()) {
+            Log.d(TAG, "Coordinate click failed. Searching for copy node morphologically...")
+            val copyNode = service.findLastNodeByKeywords(listOf("Copier", "Copy", "Copy response"))
+            if (copyNode != null) {
+                service.clickNode(copyNode)
+                delay(1500)
+                finalResult = ClipboardHelper.getFromClipboard(context)
+                copyNode.recycle()
             }
         }
 
-        return if (finalResult.isEmpty()) {
-            "Erreur: Impossible de copier la réponse finale. Le presse-papier est resté inchangé."
+        return if (finalResult.isEmpty() || finalResult == oldClipboard) {
+            "Erreur: Impossible de récupérer la réponse. Vérifiez la calibration du bouton Copier."
         } else {
+            Log.d(TAG, "Success.")
             finalResult
         }
     }

@@ -18,3 +18,7 @@ Retour au système de calibration plein écran avec ajout d'un bouton de bascule
 Refonte de CalibrationOverlayManager : retour au plein écran avec gestion dynamique de la transparence tactile pour permettre le défilement.
 Mise à jour du Dashboard : amélioration de la gestion des erreurs et de l'affichage du statut de la requête.
 Correction du XML : suppression de l'attribut invalide android:gap dans calibration_overlay.xml.
+Simplification du modèle : suppression du bouton de bas, remplacé par des gestes de balayage automatiques.
+Enrichissement du service d'accessibilité : ajout de swipe(x1, y1, x2, y2) et de la recherche de nœuds par morphologie (texte/desc).
+Refonte de l'orchestration : remplacement du bouton de bas par un Triple Swipe et ajout d'une recherche morphologique de secours pour le bouton copier.
+Mise à jour de l'interface de calibration : simplification à 3 points (Barre, Envoyer, Copier).

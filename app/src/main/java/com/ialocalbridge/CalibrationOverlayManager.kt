@@ -20,7 +20,7 @@ class CalibrationOverlayManager(
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private var overlayView: View? = null
     private val currentCoords = ProviderCoordinates()
-    private var step = 0 // 0: TextField, 1: SendButton, 2: ScrollDown, 3: CopyButton
+    private var step = 0 // 0: TextField, 1: SendButton, 2: CopyButton
     private var isScrollMode = false
 
     @SuppressLint("ClickableViewAccessibility", "InflateParams")
@@ -47,7 +47,6 @@ class CalibrationOverlayManager(
         val btnToggle = overlayView!!.findViewById<Button>(R.id.btn_toggle_mode)
         val rootLayout = overlayView!!.findViewById<FrameLayout>(R.id.calibration_root)
 
-        // Gestion du clic de calibration (uniquement en mode enregistrement)
         rootLayout.setOnTouchListener { _, event ->
             if (!isScrollMode && event.action == MotionEvent.ACTION_DOWN) {
                 saveStep(event.rawX, event.rawY, instructionTxt)
@@ -58,21 +57,20 @@ class CalibrationOverlayManager(
         btnToggle.setOnClickListener {
             isScrollMode = !isScrollMode
             if (isScrollMode) {
-                // Passer en mode défilement : l'overlay ne doit plus intercepter les clics en dehors de ses boutons
                 params.flags = params.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
-                // Mais on veut quand même cliquer sur les boutons de l'overlay ! 
-                // Pour cela, on change juste la couleur et le texte, l'utilisateur doit recliquer pour sortir.
                 rootLayout.setBackgroundColor(Color.TRANSPARENT)
                 btnToggle.text = "RETOUR AU CLIC"
                 modeTxt.text = "MODE : DÉFILEMENT (MANIPULEZ L'APPLI)"
                 modeTxt.setTextColor(Color.GREEN)
-                Toast.makeText(context, "Mode défilement activé : vous pouvez manipuler l'IA", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Mode défilement activé", Toast.LENGTH_SHORT).show()
             } else {
+                params.flags = params.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
                 rootLayout.setBackgroundColor(Color.parseColor("#66000000"))
                 btnToggle.text = "MODE DÉFILEMENT"
                 modeTxt.text = "MODE : ENREGISTREMENT (CLIQUEZ SUR L'ÉLÉMENT)"
                 modeTxt.setTextColor(Color.parseColor("#FFEB3B"))
             }
+            windowManager.updateViewLayout(overlayView, params)
         }
 
         btnCancel.setOnClickListener { hide() }
@@ -91,20 +89,14 @@ class CalibrationOverlayManager(
                 currentCoords.sendButtonX = x
                 currentCoords.sendButtonY = y
                 step++
-                textView.text = "CLIQUEZ SUR : LE BOUTON DE BAS (POUR DESCENDRE)"
-            }
-            2 -> {
-                currentCoords.scrollDownButtonX = x
-                currentCoords.scrollDownButtonY = y
-                step++
                 textView.text = "CLIQUEZ SUR : LE BOUTON COPIER"
             }
-            3 -> {
+            2 -> {
                 currentCoords.copyButtonX = x
                 currentCoords.copyButtonY = y
                 onCalibrationFinished(currentCoords)
                 hide()
-                Toast.makeText(context, "Calibration terminée avec succès !", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Calibration terminée !", Toast.LENGTH_SHORT).show()
             }
         }
     }
