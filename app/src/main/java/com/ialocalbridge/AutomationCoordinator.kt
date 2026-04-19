@@ -23,9 +23,9 @@ class AutomationCoordinator(private val context: Context) {
         service.pasteText(question)
         delay(600)
 
-        // 2. Cliquer sur le bouton retour pour fermer le clavier
-        Log.d(TAG, "Step 2: Closing keyboard...")
-        service.clickAt(coords.backButtonX, coords.backButtonY)
+        // 2. Fermer le clavier via l'action système
+        Log.d(TAG, "Step 2: Closing keyboard via system action...")
+        service.closeKeyboard()
         delay(1000)
 
         // 3. Cliquer sur le bouton envoyer

@@ -9,8 +9,6 @@ data class Provider(
 data class ProviderCoordinates(
     var textFieldX: Float = 0f,
     var textFieldY: Float = 0f,
-    var backButtonX: Float = 0f,
-    var backButtonY: Float = 0f,
     var sendButtonX: Float = 0f,
     var sendButtonY: Float = 0f,
     var scrollDownButtonX: Float = 0f,

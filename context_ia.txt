@@ -7,3 +7,5 @@ Mise à jour de AutomationCoordinator pour utiliser isGenerationActiveAt(coords)
 Changement de stratégie : Implémentation du détecteur de mouvement via les événements système (AccessibilityEvent) pour détecter la fin de génération.
 Refonte de AutomationCoordinator : Séquence Barre -> Retour -> Envoyer -> Attente Silence (3s) -> Bas -> Copier.
 Correction de l'erreur de compilation : ré-ajout de la méthode isGenerationActive() dans ClickAccessibilityService.
+Refonte de la calibration : passage au système de 'Viseur Mobile'. Suppression de la calibration du bouton Retour (remplacé par l'action système).
+Mise à jour de CalibrationOverlayManager : implémentation du viseur déplaçable et gestion des fenêtres Android pour permettre l'interaction avec l'application cible.

@@ -1,36 +1,71 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="#66000000">
+    android:layout_height="match_parent">
 
-    <TextView
-        android:id="@+id/txt_calibration_instruction"
-        android:layout_width="wrap_content"
+    <!-- Zone d'instruction en haut -->
+    <LinearLayout
+        android:id="@+id/calibration_header"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="center_horizontal|top"
-        android:layout_marginTop="100dp"
-        android:background="#AA000000"
-        android:padding="16dp"
-        android:text="Cliquez sur : LA BARRE DE TEXTE"
-        android:textColor="#FFFFFF"
-        android:textSize="18sp"
-        android:textStyle="bold" />
+        android:background="#DD000000"
+        android:orientation="vertical"
+        android:padding="16dp">
 
+        <TextView
+            android:id="@+id/txt_calibration_instruction"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Placez le viseur sur : LA BARRE DE TEXTE"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_cancel_calibration"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Annuler"
+                android:backgroundTint="#FF4444" />
+
+            <View android:layout_width="16dp" android:layout_height="1px" />
+
+            <Button
+                android:id="@+id/btn_next_step"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Valider Position"
+                android:backgroundTint="#44FF44" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Le Viseur (Cible mobile) -->
     <ImageView
         android:id="@+id/calibration_target"
-        android:layout_width="50dp"
-        android:layout_height="50dp"
-        android:layout_gravity="center"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:layout_centerInParent="true"
         android:src="@android:drawable/ic_menu_myplaces"
-        android:visibility="gone" />
+        android:contentDescription="Viseur"
+        android:padding="10dp"
+        android:background="@drawable/floating_bg" />
 
-    <Button
-        android:id="@+id/btn_cancel_calibration"
+    <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom|center_horizontal"
-        android:layout_marginBottom="50dp"
-        android:text="Annuler" />
+        android:layout_below="@id/calibration_target"
+        android:layout_centerHorizontal="true"
+        android:text="Faites glisser le viseur"
+        android:textColor="#FF0000"
+        android:textSize="12sp"
+        android:textStyle="bold" />
 
-</FrameLayout>
+</RelativeLayout>
