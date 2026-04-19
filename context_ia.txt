@@ -25,3 +25,5 @@ Mise à jour de l'interface de calibration : simplification à 3 points (Barre, 
 Implémentation de la détection par Signature Technique : capture de l'ID ressource et de la classe du bouton Envoyer pour détecter la fin de génération.
 Mise à jour de AutomationCoordinator : intégration de la capture de signature du bouton Envoyer et attente du retour à l'état initial.
 Correction de l'erreur de compilation : ré-implémentation de la méthode obligatoire onAccessibilityEvent dans ClickAccessibilityService.
+Mise à jour du service : ajout de getLastVisibleText() pour la détection de fin et performSwipe() pour le défilement.
+Refonte de l'orchestration : boucle de Swipe Long toutes les 4 secondes avec comparaison du dernier texte visible pour détecter la fin de génération.
