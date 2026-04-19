@@ -22,3 +22,5 @@ Simplification du modèle : suppression du bouton de bas, remplacé par des gest
 Enrichissement du service d'accessibilité : ajout de swipe(x1, y1, x2, y2) et de la recherche de nœuds par morphologie (texte/desc).
 Refonte de l'orchestration : remplacement du bouton de bas par un Triple Swipe et ajout d'une recherche morphologique de secours pour le bouton copier.
 Mise à jour de l'interface de calibration : simplification à 3 points (Barre, Envoyer, Copier).
+Implémentation de la détection par Signature Technique : capture de l'ID ressource et de la classe du bouton Envoyer pour détecter la fin de génération.
+Mise à jour de AutomationCoordinator : intégration de la capture de signature du bouton Envoyer et attente du retour à l'état initial.

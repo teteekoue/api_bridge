@@ -24,24 +24,44 @@ class ClickAccessibilityService : AccessibilityService() {
         Log.d(TAG, "Accessibility Service Connected")
     }
 
-    private var lastEventTime = System.currentTimeMillis()
+    // Classe pour stocker l'identité technique d'un bouton
+    data class NodeSignature(
+        val resourceId: String?,
+        val className: String?,
+        val description: String?,
+        val isClickable: Boolean
+    )
 
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // Chaque fois que le contenu de la fenêtre change, on met à jour le chronomètre
-        if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED || 
-            event?.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED) {
-            lastEventTime = System.currentTimeMillis()
+    // Capture la signature technique de ce qu'il y a aux coordonnées X/Y
+    fun getNodeSignature(x: Float, y: Float): NodeSignature? {
+        val node = findNodeAt(x, y)
+        return if (node != null) {
+            val sig = NodeSignature(
+                node.viewIdResourceName,
+                node.className?.toString(),
+                node.contentDescription?.toString(),
+                node.isClickable
+            )
+            Log.d(TAG, "Captured signature at ($x, $y): $sig")
+            node.recycle()
+            sig
+        } else {
+            Log.w(TAG, "No node found at ($x, $y) to capture signature.")
+            null
         }
     }
 
-    // Retourne le temps écoulé depuis le dernier changement en millisecondes
-    fun getTimeSinceLastUpdate(): Long {
-        return System.currentTimeMillis() - lastEventTime
-    }
-
-    // Réinitialise le chronomètre manuellement (utile juste avant de cliquer sur envoyer)
-    fun resetEventTimer() {
-        lastEventTime = System.currentTimeMillis()
+    // Vérifie si l'élément aux coordonnées X/Y correspond à la signature cible
+    fun compareSignature(x: Float, y: Float, target: NodeSignature): Boolean {
+        val current = getNodeSignature(x, y) ?: return false
+        
+        // On compare l'ID et la classe (les plus fiables)
+        // Note: l'ID peut être nul dans certaines applis, on compare alors la classe et la description
+        return if (target.resourceId != null && current.resourceId != null) {
+            target.resourceId == current.resourceId && target.className == current.className
+        } else {
+            target.className == current.className && target.description == current.description
+        }
     }
 
     override fun onInterrupt() {

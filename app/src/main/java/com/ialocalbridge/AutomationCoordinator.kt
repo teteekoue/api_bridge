@@ -28,56 +28,62 @@ class AutomationCoordinator(private val context: Context) {
         service.closeKeyboard()
         delay(1200)
 
-        // 3. Cliquer sur le bouton envoyer
-        Log.d(TAG, "Step 3: Clicking send button...")
-        service.resetEventTimer()
+        // 3. CAPTURE DE LA SIGNATURE DU BOUTON ENVOYER AU REPOS
+        Log.d(TAG, "Step 3: Capturing Send Button signature at rest...")
+        val restSignature = service.getNodeSignature(coords.sendButtonX, coords.sendButtonY)
+        
+        // 4. Cliquer sur le bouton envoyer
+        Log.d(TAG, "Step 4: Clicking send button...")
         service.clickAt(coords.sendButtonX, coords.sendButtonY)
         
-        // 4. ATTENTE DE STABILITÉ (Fin de génération)
-        Log.d(TAG, "Step 4: Waiting for stability (3s silence)...")
-        delay(2000) // Attente démarrage
+        // 5. ATTENTE DE FIN DE GÉNÉRATION (Retour à la signature de repos)
+        Log.d(TAG, "Step 5: Waiting for generation to finish (Signature matching)...")
+        delay(3000) // Laisser le temps à l'interface de passer en mode "Stop"
         
-        var isStable = false
-        val stabilityThreshold = 3500L // Augmenté pour plus de sûreté
-        val timeoutMax = 120000L
+        var isFinished = false
+        val timeoutMax = 90000L // 90 secondes max
         val startTime = System.currentTimeMillis()
 
-        while (!isStable && (System.currentTimeMillis() - startTime) < timeoutMax) {
-            val idleTime = service.getTimeSinceLastUpdate()
-            if (idleTime >= stabilityThreshold) {
-                isStable = true
-                Log.d(TAG, "Interface stable.")
+        while (!isFinished && (System.currentTimeMillis() - startTime) < timeoutMax) {
+            // Si on a pu capturer une signature au repos, on attend qu'elle revienne
+            if (restSignature != null) {
+                if (service.compareSignature(coords.sendButtonX, coords.sendButtonY, restSignature)) {
+                    Log.d(TAG, "Signature matched! Send button is back. Generation finished.")
+                    isFinished = true
+                } else {
+                    Log.d(TAG, "Signature mismatch (Still generating...).")
+                    delay(800)
+                }
             } else {
-                delay(500)
+                // Secours : si on n'a pas pu capturer la signature, on attend 15s par défaut
+                Log.w(TAG, "No rest signature captured, using fixed delay safety.")
+                delay(15000)
+                isFinished = true
             }
         }
-        delay(1000)
+        delay(1500)
 
-        // 5. TRIPLE SWIPE pour forcer le bas (Évite les bordures système)
-        Log.d(TAG, "Step 5: Performing Triple Swipe to bottom...")
+        // 6. TRIPLE SWIPE pour forcer le bas
+        Log.d(TAG, "Step 6: Performing Triple Swipe to bottom...")
         val metrics = context.resources.displayMetrics
         val centerX = metrics.widthPixels / 2f
-        val startY = metrics.heightPixels * 0.7f // Part du bas (au dessus des boutons système)
-        val endY = metrics.heightPixels * 0.3f   // Vers le haut
-        
+        val startY = metrics.heightPixels * 0.7f
+        val endY = metrics.heightPixels * 0.3f
         repeat(3) {
             service.performSwipe(centerX, startY, centerX, endY)
             delay(400)
         }
         delay(1000)
 
-        // 6. COPIE INTELLIGENTE
-        Log.d(TAG, "Step 6: Attempting to copy response...")
+        // 7. COPIE INTELLIGENTE
+        Log.d(TAG, "Step 7: Attempting to copy response...")
         var finalResult = ""
-        
-        // Tentative 1 : Coordonnées calibrées
         service.clickAt(coords.copyButtonX, coords.copyButtonY)
         delay(1500)
         finalResult = ClipboardHelper.getFromClipboard(context)
         
-        // Tentative 2 : Recherche morphologique si le presse-papier n'a pas changé
         if (finalResult == oldClipboard || finalResult.isEmpty()) {
-            Log.d(TAG, "Coordinate click failed. Searching for copy node morphologically...")
+            Log.d(TAG, "Coordinate click failed. Searching morphologically...")
             val copyNode = service.findLastNodeByKeywords(listOf("Copier", "Copy", "Copy response"))
             if (copyNode != null) {
                 service.clickNode(copyNode)
@@ -88,7 +94,7 @@ class AutomationCoordinator(private val context: Context) {
         }
 
         return if (finalResult.isEmpty() || finalResult == oldClipboard) {
-            "Erreur: Impossible de récupérer la réponse. Vérifiez la calibration du bouton Copier."
+            "Erreur: Impossible de récupérer la réponse finale."
         } else {
             Log.d(TAG, "Success.")
             finalResult
