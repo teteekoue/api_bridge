@@ -35,8 +35,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="15dp"
-            android:orientation="horizontal"
-            android:gap="10dp">
+            android:orientation="horizontal">
 
             <Button
                 android:id="@+id/btn_toggle_mode"

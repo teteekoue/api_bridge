@@ -17,3 +17,4 @@ Correction critique du serveur : exécution de l'automation sur le Main Looper p
 Retour au système de calibration plein écran avec ajout d'un bouton de bascule 'Mode Défilement/Mode Clic'.
 Refonte de CalibrationOverlayManager : retour au plein écran avec gestion dynamique de la transparence tactile pour permettre le défilement.
 Mise à jour du Dashboard : amélioration de la gestion des erreurs et de l'affichage du statut de la requête.
+Correction du XML : suppression de l'attribut invalide android:gap dans calibration_overlay.xml.
