@@ -13,5 +13,8 @@ data class ProviderCoordinates(
     var sendButtonY: Float = 0f,
     var copyButtonX: Float = 0f,
     var copyButtonY: Float = 0f,
+    var copyButtonResourceId: String? = null,
+    var copyButtonClassName: String? = null,
+    var copyButtonDescription: String? = null,
     var delayAfterSendMs: Long = 7000
 )

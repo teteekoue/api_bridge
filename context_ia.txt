@@ -27,3 +27,7 @@ Mise à jour de AutomationCoordinator : intégration de la capture de signature 
 Correction de l'erreur de compilation : ré-implémentation de la méthode obligatoire onAccessibilityEvent dans ClickAccessibilityService.
 Mise à jour du service : ajout de getLastVisibleText() pour la détection de fin et performSwipe() pour le défilement.
 Refonte de l'orchestration : boucle de Swipe Long toutes les 4 secondes avec comparaison du dernier texte visible pour détecter la fin de génération.
+Perfectionnement : ajout des champs morphologiques (ID, Classe, Description) pour le bouton Copier dans le modèle.
+Mise à jour du calibrage : capture automatique des propriétés techniques (Morphologie) du bouton Copier lors du clic de validation.
+Amélioration du service : ajout de findNodeByMorphology() pour retrouver le bouton Copier même s'il s'est déplacé.
+Mise à jour de AutomationCoordinator : ajout du Swipe Ultime et d'une boucle de récupération morphologique pour le bouton Copier.

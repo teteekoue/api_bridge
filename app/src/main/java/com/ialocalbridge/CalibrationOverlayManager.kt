@@ -94,9 +94,22 @@ class CalibrationOverlayManager(
             2 -> {
                 currentCoords.copyButtonX = x
                 currentCoords.copyButtonY = y
+
+                // Capture de la morphologie via le service d'accessibilité
+                val service = ClickAccessibilityService.instance
+                if (service != null) {
+                    val node = service.findNodeAt(x, y)
+                    if (node != null) {
+                        currentCoords.copyButtonResourceId = node.viewIdResourceName
+                        currentCoords.copyButtonClassName = node.className?.toString()
+                        currentCoords.copyButtonDescription = node.contentDescription?.toString()
+                        node.recycle()
+                    }
+                }
+
                 onCalibrationFinished(currentCoords)
                 hide()
-                Toast.makeText(context, "Calibration terminée !", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Calibration terminée avec succès !", Toast.LENGTH_SHORT).show()
             }
         }
     }

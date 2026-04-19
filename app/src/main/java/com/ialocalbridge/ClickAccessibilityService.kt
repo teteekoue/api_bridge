@@ -120,11 +120,12 @@ class ClickAccessibilityService : AccessibilityService() {
         }
     }
 
-    fun findLastNodeByKeywords(keywords: List<String>): AccessibilityNodeInfo? {
+    fun findNodeByMorphology(resourceId: String?, className: String?, description: String?): AccessibilityNodeInfo? {
         val rootNode = rootInActiveWindow ?: return null
         val matches = mutableListOf<AccessibilityNodeInfo>()
-        findNodesRecursiveWithKeywords(rootNode, keywords, matches)
+        findNodesRecursiveMorphological(rootNode, resourceId, className, description, matches)
         
+        // Retourne le dernier (celui du bas)
         return if (matches.isNotEmpty()) {
             val lastNode = matches.maxByOrNull { 
                 val rect = android.graphics.Rect()
@@ -136,17 +137,21 @@ class ClickAccessibilityService : AccessibilityService() {
         } else null
     }
 
-    private fun findNodesRecursiveWithKeywords(node: AccessibilityNodeInfo, keywords: List<String>, matches: MutableList<AccessibilityNodeInfo>) {
-        val text = node.text?.toString() ?: ""
-        val desc = node.contentDescription?.toString() ?: ""
+    private fun findNodesRecursiveMorphological(node: AccessibilityNodeInfo, resId: String?, clsName: String?, desc: String?, matches: MutableList<AccessibilityNodeInfo>) {
+        val nodeResId = node.viewIdResourceName
+        val nodeClsName = node.className?.toString()
+        val nodeDesc = node.contentDescription?.toString()
         
-        if (keywords.any { text.contains(it, ignoreCase = true) || desc.contains(it, ignoreCase = true) }) {
+        // Match si au moins l'ID ou la Description correspond, tout en gardant la même classe
+        val isMatch = (resId != null && nodeResId == resId) || (desc != null && nodeDesc == desc)
+        
+        if (isMatch && (clsName == null || nodeClsName == clsName)) {
             matches.add(AccessibilityNodeInfo.obtain(node))
         }
         
         for (i in 0 until node.childCount) {
             val child = node.getChild(i) ?: continue
-            findNodesRecursiveWithKeywords(child, keywords, matches)
+            findNodesRecursiveMorphological(child, resId, clsName, desc, matches)
         }
     }
 
