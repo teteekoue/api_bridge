@@ -6,3 +6,4 @@ Amélioration de la détection de fin de génération : analyse ciblée des nœu
 Mise à jour de AutomationCoordinator pour utiliser isGenerationActiveAt(coords) lors de l'attente de la réponse.
 Changement de stratégie : Implémentation du détecteur de mouvement via les événements système (AccessibilityEvent) pour détecter la fin de génération.
 Refonte de AutomationCoordinator : Séquence Barre -> Retour -> Envoyer -> Attente Silence (3s) -> Bas -> Copier.
+Correction de l'erreur de compilation : ré-ajout de la méthode isGenerationActive() dans ClickAccessibilityService.

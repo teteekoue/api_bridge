@@ -168,6 +168,17 @@ class ClickAccessibilityService : AccessibilityService() {
         return isGenerationActive()
     }
 
+    // Public method to check if generation is currently active globally
+    fun isGenerationActive(): Boolean {
+        val stopNode = findStopButtonNode()
+        if (stopNode != null) {
+            Log.d(TAG, "Stop button found, generation is active.")
+            stopNode.recycle()
+            return true
+        }
+        return false
+    }
+
     fun findNodeAt(x: Float, y: Float): AccessibilityNodeInfo? {
         val rootNode = rootInActiveWindow ?: return null
         return findNodeAtRecursive(rootNode, x.toInt(), y.toInt())
