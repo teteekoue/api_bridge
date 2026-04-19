@@ -1,29 +1,31 @@
 package com.ialocalbridge
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import com.ialocalbridge.utils.NetworkHelper
 import com.ialocalbridge.utils.WebInterface
 import fi.iki.elonen.NanoHTTPD
 import fi.iki.elonen.NanoHTTPD.Response
 import fi.iki.elonen.NanoHTTPD.IHTTPSession
 import kotlinx.coroutines.runBlocking
+import java.util.concurrent.CompletableFuture
 
 class LocalApiServer(private val port: Int, private val context: Context) : NanoHTTPD(port) {
 
     private val coordinator = AutomationCoordinator(context)
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     override fun serve(session: IHTTPSession): Response {
         val uri = session.uri
         val method = session.method
 
-        // Gestion de l'Option (Pre-flight) pour CORS
         if (method == Method.OPTIONS) {
             val response = newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, "")
             addCORSHeaders(response)
             return response
         }
 
-        // Gestion de la page d'accueil (Dashboard)
         if (uri == "/" || uri == "/index.html") {
             val ip = NetworkHelper.getIPAddress()
             return newFixedLengthResponse(Response.Status.OK, MIME_HTML, WebInterface.getHtml(ip, port))
@@ -34,7 +36,7 @@ class LocalApiServer(private val port: Int, private val context: Context) : Nano
                 try {
                     val params = if (method == Method.POST) {
                         val files = HashMap<String, String>()
-                        session.parseBody(files) // Crucial pour lire le corps POST
+                        session.parseBody(files)
                         session.parameters
                     } else {
                         session.parameters
@@ -43,9 +45,20 @@ class LocalApiServer(private val port: Int, private val context: Context) : Nano
                     val question = params["q"]?.get(0) ?: params["question"]?.get(0)
                     
                     if (question != null) {
-                        val responseText = runBlocking {
-                            coordinator.processQuestion(question)
+                        // Exécuter l'automation sur le thread principal pour éviter les erreurs de Looper
+                        val future = CompletableFuture<String>()
+                        mainHandler.post {
+                            runBlocking {
+                                try {
+                                    val result = coordinator.processQuestion(question)
+                                    future.complete(result)
+                                } catch (e: Exception) {
+                                    future.complete("Erreur Automation: ${e.message}")
+                                }
+                            }
                         }
+                        
+                        val responseText = future.get() // Attendre le résultat
                         val response = newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, responseText)
                         addCORSHeaders(response)
                         response
@@ -55,7 +68,9 @@ class LocalApiServer(private val port: Int, private val context: Context) : Nano
                         response
                     }
                 } catch (e: Exception) {
-                    newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "Erreur serveur: ${e.message}")
+                    val response = newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "Erreur serveur: ${e.message}")
+                    addCORSHeaders(response)
+                    response
                 }
             }
             "/status" -> {

@@ -13,3 +13,7 @@ Correction du serveur : ajout des headers CORS complets et parsing robuste du co
 Refonte de CalibrationOverlayManager : implémentation du rectangle de calibrage déplaçable avec enregistrement des clics internes.
 Optimisation de AutomationCoordinator : ajout d'un délai de 1s après la fermeture du clavier et sécurisation de la lecture finale.
 Correction de l'erreur de compilation : remplacement de l'icône ic_menu_move par ic_menu_directions.
+Correction critique du serveur : exécution de l'automation sur le Main Looper pour éviter les erreurs de Handler/Thread.
+Retour au système de calibration plein écran avec ajout d'un bouton de bascule 'Mode Défilement/Mode Clic'.
+Refonte de CalibrationOverlayManager : retour au plein écran avec gestion dynamique de la transparence tactile pour permettre le défilement.
+Mise à jour du Dashboard : amélioration de la gestion des erreurs et de l'affichage du statut de la requête.
