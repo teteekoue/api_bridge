@@ -21,71 +21,62 @@ class AutomationCoordinator(private val context: Context) {
         service.clickAt(coords.textFieldX, coords.textFieldY)
         delay(600)
         service.pasteText(question)
-        delay(600)
+        delay(800) // Laisser le temps au clavier de s'ouvrir complètement
 
-        // 2. Fermer le clavier via l'action système
-        Log.d(TAG, "Step 2: Closing keyboard via system action...")
+        // 2. Fermer le clavier via l'action système (Touche Retour)
+        Log.d(TAG, "Step 2: Closing keyboard via back action...")
         service.closeKeyboard()
-        delay(1000)
+        delay(1200) // DÉLAI DE 1S (plus un peu de marge) pour que l'interface se replace
 
         // 3. Cliquer sur le bouton envoyer
         Log.d(TAG, "Step 3: Clicking send button...")
         service.resetEventTimer() // On remet le chrono à zéro juste avant
         service.clickAt(coords.sendButtonX, coords.sendButtonY)
         
-        // 4. ATTENTE DE STABILITÉ (Détection de fin de génération)
-        Log.d(TAG, "Step 4: Waiting for interface stability (end of generation)...")
-        delay(2000) // On attend 2s que la génération démarre vraiment
+        // 4. ATTENTE DE STABILITÉ (Détection de fin de génération via flux de données)
+        Log.d(TAG, "Step 4: Waiting for data flow stability (silence)...")
+        delay(2000) // On attend que la génération démarre vraiment
         
         var isStable = false
-        var attempts = 0
-        val stabilityThreshold = 3000L // On veut 3 secondes de silence total
-        val timeoutMax = 90000L // On n'attend pas plus de 90 secondes au total
+        val stabilityThreshold = 3000L // 3 secondes de silence = fin de réponse
+        val timeoutMax = 120000L // 2 minutes max
         val startTime = System.currentTimeMillis()
 
         while (!isStable && (System.currentTimeMillis() - startTime) < timeoutMax) {
             val idleTime = service.getTimeSinceLastUpdate()
-            
             if (idleTime >= stabilityThreshold) {
-                Log.d(TAG, "Interface is stable for ${idleTime}ms. Generation likely finished.")
+                Log.d(TAG, "Interface is stable for ${idleTime}ms. Generation finished.")
                 isStable = true
             } else {
-                // L'interface bouge encore, on attend un peu avant de re-vérifier
                 delay(500)
-                attempts++
-                if (attempts % 10 == 0) Log.d(TAG, "Still detecting movement...")
             }
         }
-        
-        if (!isStable) Log.w(TAG, "Timed out waiting for stability, proceeding anyway.")
         delay(1000)
 
         // 5. Cliquer sur le bouton de bas pour descendre à l'extrême fin
-        Log.d(TAG, "Step 5: Scrolling to bottom...")
+        Log.d(TAG, "Step 5: Scrolling to extreme bottom...")
         service.clickAt(coords.scrollDownButtonX, coords.scrollDownButtonY)
-        delay(1200)
+        delay(1000)
 
         // 6. Cliquer sur le bouton copier
-        Log.d(TAG, "Step 6: Attempting to copy response...")
+        Log.d(TAG, "Step 6: Clicking copy button...")
         var finalResult = ""
         for (i in 0..2) {
             service.clickAt(coords.copyButtonX, coords.copyButtonY)
-            delay(1500) // Attente que le presse-papier se mette à jour
+            delay(1500) // Attente de mise à jour du presse-papier
             val currentClipboard = ClipboardHelper.getFromClipboard(context)
             if (currentClipboard.isNotEmpty() && currentClipboard != oldClipboard) {
                 finalResult = currentClipboard
-                Log.d(TAG, "Successfully copied response.")
+                Log.d(TAG, "Successfully copied and retrieved response.")
                 break
             } else {
-                Log.d(TAG, "Clipboard update not detected. Retry $i/2...")
+                Log.d(TAG, "Clipboard update retry $i/2...")
             }
         }
 
         return if (finalResult.isEmpty()) {
-            Log.e(TAG, "Failed to retrieve response.")
-            "Erreur: Impossible de récupérer la réponse après génération."
+            "Erreur: Impossible de copier la réponse finale. Le presse-papier est resté inchangé."
         } else {
-            Log.d(TAG, "Success. Returning response.")
             finalResult
         }
     }

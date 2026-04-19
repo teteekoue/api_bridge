@@ -6,6 +6,7 @@ import android.graphics.PixelFormat
 import android.os.Build
 import android.view.*
 import android.widget.Button
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
@@ -35,7 +36,7 @@ class CalibrationOverlayManager(
             WindowManager.LayoutParams.TYPE_PHONE
         }
 
-        // FLAG_NOT_TOUCH_MODAL permet de toucher l'application derrière si on ne touche pas les vues de l'overlay
+        // FLAG_NOT_TOUCH_MODAL : crucial pour pouvoir toucher l'appli à côté de la zone
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
@@ -47,29 +48,20 @@ class CalibrationOverlayManager(
         overlayView = LayoutInflater.from(context).inflate(R.layout.calibration_overlay, null)
         val instructionTxt = overlayView!!.findViewById<TextView>(R.id.txt_calibration_instruction)
         val btnCancel = overlayView!!.findViewById<Button>(R.id.btn_cancel_calibration)
-        val btnNext = overlayView!!.findViewById<Button>(R.id.btn_next_step)
-        val target = overlayView!!.findViewById<ImageView>(R.id.calibration_target)
+        val calibrationZone = overlayView!!.findViewById<FrameLayout>(R.id.calibration_zone)
+        val dragHandle = overlayView!!.findViewById<ImageView>(R.id.zone_drag_handle)
 
-        // Rendre le viseur déplaçable
-        target.setOnTouchListener { v, event ->
+        // Gestion du déplacement du rectangle via la poignée
+        dragHandle.setOnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
-                    val location = IntArray(2)
-                    v.getLocationOnScreen(location)
-                    initialX = location[0]
-                    initialY = location[1]
                     initialTouchX = event.rawX
                     initialTouchY = event.rawY
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    val dx = (event.rawX - initialTouchX).toInt()
-                    val dy = (event.rawY - initialTouchY).toInt()
-                    
-                    // On déplace le viseur via translation car le parent est un RelativeLayout MATCH_PARENT
-                    v.translationX = v.translationX + dx
-                    v.translationY = v.translationY + dy
-                    
+                    calibrationZone.translationX += (event.rawX - initialTouchX)
+                    calibrationZone.translationY += (event.rawY - initialTouchY)
                     initialTouchX = event.rawX
                     initialTouchY = event.rawY
                     true
@@ -78,43 +70,42 @@ class CalibrationOverlayManager(
             }
         }
 
-        btnNext.setOnClickListener {
-            saveStep(target, instructionTxt)
+        // Clic à l'intérieur du rectangle pour calibrer
+        calibrationZone.setOnTouchListener { _, event ->
+            if (event.action == MotionEvent.ACTION_DOWN) {
+                // On enregistre la position absolue sur l'écran
+                saveStep(event.rawX, event.rawY, instructionTxt)
+                true
+            } else false
         }
 
         btnCancel.setOnClickListener { hide() }
         windowManager.addView(overlayView, params)
     }
 
-    private fun saveStep(target: View, textView: TextView) {
-        val location = IntArray(2)
-        target.getLocationOnScreen(location)
-        // On prend le centre du viseur
-        val centerX = location[0] + target.width / 2f
-        val centerY = location[1] + target.height / 2f
-
+    private fun saveStep(x: Float, y: Float, textView: TextView) {
         when (step) {
             0 -> {
-                currentCoords.textFieldX = centerX
-                currentCoords.textFieldY = centerY
+                currentCoords.textFieldX = x
+                currentCoords.textFieldY = y
                 step++
-                textView.text = "Placez le viseur sur : LE BOUTON ENVOYER"
+                textView.text = "Étape 2 : Cliquez sur LE BOUTON ENVOYER\n(Placez la zone rouge dessus avant)"
             }
             1 -> {
-                currentCoords.sendButtonX = centerX
-                currentCoords.sendButtonY = centerY
+                currentCoords.sendButtonX = x
+                currentCoords.sendButtonY = y
                 step++
-                textView.text = "Placez le viseur sur : LE BOUTON DE BAS (Défilement)"
+                textView.text = "Étape 3 : Cliquez sur LE BOUTON DE BAS\n(Placez la zone rouge dessus avant)"
             }
             2 -> {
-                currentCoords.scrollDownButtonX = centerX
-                currentCoords.scrollDownButtonY = centerY
+                currentCoords.scrollDownButtonX = x
+                currentCoords.scrollDownButtonY = y
                 step++
-                textView.text = "Placez le viseur sur : LE BOUTON COPIER"
+                textView.text = "Étape 4 : Cliquez sur LE BOUTON COPIER\n(Placez la zone rouge dessus avant)"
             }
             3 -> {
-                currentCoords.copyButtonX = centerX
-                currentCoords.copyButtonY = centerY
+                currentCoords.copyButtonX = x
+                currentCoords.copyButtonY = y
                 onCalibrationFinished(currentCoords)
                 hide()
                 Toast.makeText(context, "Calibration terminée !", Toast.LENGTH_SHORT).show()

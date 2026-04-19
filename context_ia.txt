@@ -9,3 +9,6 @@ Refonte de AutomationCoordinator : Séquence Barre -> Retour -> Envoyer -> Atten
 Correction de l'erreur de compilation : ré-ajout de la méthode isGenerationActive() dans ClickAccessibilityService.
 Refonte de la calibration : passage au système de 'Viseur Mobile'. Suppression de la calibration du bouton Retour (remplacé par l'action système).
 Mise à jour de CalibrationOverlayManager : implémentation du viseur déplaçable et gestion des fenêtres Android pour permettre l'interaction avec l'application cible.
+Correction du serveur : ajout des headers CORS complets et parsing robuste du corps de la requête POST.
+Refonte de CalibrationOverlayManager : implémentation du rectangle de calibrage déplaçable avec enregistrement des clics internes.
+Optimisation de AutomationCoordinator : ajout d'un délai de 1s après la fermeture du clavier et sécurisation de la lecture finale.

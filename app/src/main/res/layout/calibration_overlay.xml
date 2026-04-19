@@ -1,71 +1,68 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- Zone d'instruction en haut -->
+    <!-- Instructions flottantes en haut (non bloquantes) -->
     <LinearLayout
         android:id="@+id/calibration_header"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#DD000000"
+        android:background="#BB000000"
         android:orientation="vertical"
-        android:padding="16dp">
+        android:padding="10dp">
 
         <TextView
             android:id="@+id/txt_calibration_instruction"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Placez le viseur sur : LA BARRE DE TEXTE"
+            android:text="1. Déplacez la ZONE ROUGE sur l'élément\n2. CLIQUEZ DANS LA ZONE pour enregistrer"
             android:textColor="#FFFFFF"
-            android:textSize="16sp"
-            android:textStyle="bold" />
+            android:textSize="14sp" />
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:orientation="horizontal">
-
-            <Button
-                android:id="@+id/btn_cancel_calibration"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Annuler"
-                android:backgroundTint="#FF4444" />
-
-            <View android:layout_width="16dp" android:layout_height="1px" />
-
-            <Button
-                android:id="@+id/btn_next_step"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Valider Position"
-                android:backgroundTint="#44FF44" />
-        </LinearLayout>
+        <Button
+            android:id="@+id/btn_cancel_calibration"
+            android:layout_width="wrap_content"
+            android:layout_height="35dp"
+            android:layout_marginTop="5dp"
+            android:padding="0dp"
+            android:text="Annuler"
+            android:textSize="12sp"
+            android:backgroundTint="#FF4444" />
     </LinearLayout>
 
-    <!-- Le Viseur (Cible mobile) -->
-    <ImageView
-        android:id="@+id/calibration_target"
-        android:layout_width="60dp"
-        android:layout_height="60dp"
-        android:layout_centerInParent="true"
-        android:src="@android:drawable/ic_menu_myplaces"
-        android:contentDescription="Viseur"
-        android:padding="10dp"
-        android:background="@drawable/floating_bg" />
+    <!-- La ZONE DE CALIBRAGE (Rectangle mobile) -->
+    <FrameLayout
+        android:id="@+id/calibration_zone"
+        android:layout_width="200dp"
+        android:layout_height="100dp"
+        android:layout_gravity="center"
+        android:background="#44FF0000">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_below="@id/calibration_target"
-        android:layout_centerHorizontal="true"
-        android:text="Faites glisser le viseur"
-        android:textColor="#FF0000"
-        android:textSize="12sp"
-        android:textStyle="bold" />
+        <!-- Bordure visuelle -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@android:drawable/dialog_holo_light_frame"
+            android:alpha="0.5" />
 
-</RelativeLayout>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="ZONE DE CLIC"
+            android:textColor="#FF0000"
+            android:textStyle="bold"
+            android:textSize="12sp" />
+            
+        <!-- Poignée pour déplacer -->
+        <ImageView
+            android:id="@+id/zone_drag_handle"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:layout_gravity="top|left"
+            android:src="@android:drawable/ic_menu_move"
+            android:background="#88000000" />
+    </FrameLayout>
+
+</FrameLayout>
