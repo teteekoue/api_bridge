@@ -61,7 +61,7 @@
             android:layout_width="30dp"
             android:layout_height="30dp"
             android:layout_gravity="top|left"
-            android:src="@android:drawable/ic_menu_move"
+            android:src="@android:drawable/ic_menu_directions"
             android:background="#88000000" />
     </FrameLayout>
 

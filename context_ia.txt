@@ -12,3 +12,4 @@ Mise à jour de CalibrationOverlayManager : implémentation du viseur déplaçab
 Correction du serveur : ajout des headers CORS complets et parsing robuste du corps de la requête POST.
 Refonte de CalibrationOverlayManager : implémentation du rectangle de calibrage déplaçable avec enregistrement des clics internes.
 Optimisation de AutomationCoordinator : ajout d'un délai de 1s après la fermeture du clavier et sécurisation de la lecture finale.
+Correction de l'erreur de compilation : remplacement de l'icône ic_menu_move par ic_menu_directions.
