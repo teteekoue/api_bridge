@@ -2,113 +2,90 @@ package com.ialocalbridge
 
 import android.content.Context
 import android.util.Log
-import android.view.accessibility.AccessibilityNodeInfo
 import com.ialocalbridge.utils.ClipboardHelper
 import kotlinx.coroutines.delay
 
-class AutomationCoordinator(private val context: Context) { // CalibrationManager is no longer needed
+class AutomationCoordinator(private val context: Context) {
 
     private val accessibilityService get() = ClickAccessibilityService.instance
+    private val calibrationManager = CalibrationManager(context)
     private val TAG = "AutomationCoordinator"
 
     suspend fun processQuestion(question: String): String {
         val service = accessibilityService ?: return "Erreur: Service d'accessibilité non activé"
+        val coords = calibrationManager.getCoordinates("default_provider")
         val oldClipboard = ClipboardHelper.getFromClipboard(context)
 
-        // 1. Trouver le champ de texte et y injecter la question.
-        Log.d(TAG, "Finding editable node...")
-        val textFieldNode = service.findEditableNode()
-        if (textFieldNode == null) {
-            Log.e(TAG, "Editable node not found. Cannot paste text.")
-            return "Erreur: Champ de texte non trouvé sur l'écran."
-        }
-        
-        // Focus on the editable node explicitly
-        if (!textFieldNode.performAction(AccessibilityNodeInfo.ACTION_FOCUS)) {
-             Log.w(TAG, "Failed to focus editable node. Proceeding with paste anyway.")
-        }
-        delay(200)
+        // 1. Cliquer sur la barre de message et coller le texte
+        Log.d(TAG, "Step 1: Clicking message bar and pasting text...")
+        service.clickAt(coords.textFieldX, coords.textFieldY)
+        delay(600)
+        service.pasteText(question)
+        delay(600)
 
-        Log.d(TAG, "Pasting text...")
-        if (!service.pasteText(question)) {
-            Log.e(TAG, "Failed to paste text directly.")
-            // If direct paste fails, report error. No fallback to coords anymore.
-            return "Erreur: Échec de l'injection de texte dans le champ."
-        }
-        delay(400)
-
-        // 2. Fermeture préventive immédiate du clavier.
-        service.closeKeyboard()
-        delay(500)
-
-        // 3. Trouver et cliquer sur le bouton Envoyer.
-        Log.d(TAG, "Finding send button...")
-        val sendButtonNode = service.findSendButtonNode()
-        if (sendButtonNode == null) {
-            Log.e(TAG, "Send button not found.")
-            return "Erreur: Bouton d'envoi non trouvé sur l'écran."
-        }
-        
-        Log.d(TAG, "Clicking send button...")
-        service.clickNode(sendButtonNode)
-        sendButtonNode.recycle() // Recycle node after click
-        delay(1000) // Wait for generation to start
-
-        // 4. BOUCLE D'ATTENTE INTELLIGENTE (Attente de la fin de génération)
-        Log.d(TAG, "Waiting for generation to finish...")
-        var isGenerating = true
-        var attempts = 0
-        while (isGenerating && attempts < 100) { // Timeout max ~30 seconds
-            if (service.isGenerationActive()) {
-                Log.d(TAG, "Generation active, waiting...")
-                delay(300)
-                attempts++
-            } else {
-                isGenerating = false
-            }
-        }
-        if (attempts >= 100) {
-            Log.w(TAG, "Timeout waiting for generation to finish.")
-        } else {
-            Log.d(TAG, "Generation finished or not detected.")
-        }
-
-        // 5. Fermeture supplémentaire du clavier.
-        service.closeKeyboard()
-        delay(300)
-
-        // 6. DÉFILEMENT EXTRÊME.
-        Log.d(TAG, "Forcing scroll to bottom...")
-        service.forceScrollToBottom()
+        // 2. Cliquer sur le bouton retour pour fermer le clavier
+        Log.d(TAG, "Step 2: Closing keyboard...")
+        service.clickAt(coords.backButtonX, coords.backButtonY)
         delay(1000)
 
-        // 7. BOUCLE DE COPIE (Vérification que le presse-papier a bien changé).
-        Log.d(TAG, "Finding copy button and attempting to copy...")
-        var finalResult = ""
-        for (i in 0..3) {
-            val copyButtonNode = service.findCopyButtonNode()
-            if (copyButtonNode != null) {
-                service.clickNode(copyButtonNode)
-                delay(1000) // Wait for clipboard update
-                val currentClipboard = ClipboardHelper.getFromClipboard(context)
-                if (currentClipboard.isNotEmpty() && currentClipboard != oldClipboard) {
-                    finalResult = currentClipboard
-                    Log.d(TAG, "Successfully copied response.")
-                    break
-                } else {
-                    Log.d(TAG, "Clipboard content not updated or empty. Retry copy ($i). Current: '$currentClipboard', Old: '$oldClipboard'")
-                }
-                copyButtonNode.recycle()
+        // 3. Cliquer sur le bouton envoyer
+        Log.d(TAG, "Step 3: Clicking send button...")
+        service.resetEventTimer() // On remet le chrono à zéro juste avant
+        service.clickAt(coords.sendButtonX, coords.sendButtonY)
+        
+        // 4. ATTENTE DE STABILITÉ (Détection de fin de génération)
+        Log.d(TAG, "Step 4: Waiting for interface stability (end of generation)...")
+        delay(2000) // On attend 2s que la génération démarre vraiment
+        
+        var isStable = false
+        var attempts = 0
+        val stabilityThreshold = 3000L // On veut 3 secondes de silence total
+        val timeoutMax = 90000L // On n'attend pas plus de 90 secondes au total
+        val startTime = System.currentTimeMillis()
+
+        while (!isStable && (System.currentTimeMillis() - startTime) < timeoutMax) {
+            val idleTime = service.getTimeSinceLastUpdate()
+            
+            if (idleTime >= stabilityThreshold) {
+                Log.d(TAG, "Interface is stable for ${idleTime}ms. Generation likely finished.")
+                isStable = true
             } else {
-                Log.e(TAG, "Copy button not found for click attempt ($i).")
+                // L'interface bouge encore, on attend un peu avant de re-vérifier
+                delay(500)
+                attempts++
+                if (attempts % 10 == 0) Log.d(TAG, "Still detecting movement...")
+            }
+        }
+        
+        if (!isStable) Log.w(TAG, "Timed out waiting for stability, proceeding anyway.")
+        delay(1000)
+
+        // 5. Cliquer sur le bouton de bas pour descendre à l'extrême fin
+        Log.d(TAG, "Step 5: Scrolling to bottom...")
+        service.clickAt(coords.scrollDownButtonX, coords.scrollDownButtonY)
+        delay(1200)
+
+        // 6. Cliquer sur le bouton copier
+        Log.d(TAG, "Step 6: Attempting to copy response...")
+        var finalResult = ""
+        for (i in 0..2) {
+            service.clickAt(coords.copyButtonX, coords.copyButtonY)
+            delay(1500) // Attente que le presse-papier se mette à jour
+            val currentClipboard = ClipboardHelper.getFromClipboard(context)
+            if (currentClipboard.isNotEmpty() && currentClipboard != oldClipboard) {
+                finalResult = currentClipboard
+                Log.d(TAG, "Successfully copied response.")
+                break
+            } else {
+                Log.d(TAG, "Clipboard update not detected. Retry $i/2...")
             }
         }
 
         return if (finalResult.isEmpty()) {
-            Log.e(TAG, "Failed to retrieve response from clipboard.")
-            "Erreur: Impossible de récupérer la réponse. La copie a échoué ou l'IA n'a rien renvoyé."
+            Log.e(TAG, "Failed to retrieve response.")
+            "Erreur: Impossible de récupérer la réponse après génération."
         } else {
-            Log.d(TAG, "Returning final result.")
+            Log.d(TAG, "Success. Returning response.")
             finalResult
         }
     }

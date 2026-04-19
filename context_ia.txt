@@ -1,0 +1,8 @@
+Mise à jour du modèle ProviderCoordinates pour inclure 5 points de calibration : Barre de message, Bouton Retour, Bouton Envoyer, Bouton de Bas, Bouton Copier.
+Mise à jour de CalibrationOverlayManager pour gérer les 5 étapes de calibration.
+Ajout de la méthode clickAt(x, y) dans ClickAccessibilityService pour supporter le clic par coordonnées.
+Mise à jour de AutomationCoordinator pour implémenter la nouvelle séquence de clics par coordonnées : Barre -> Retour -> Envoyer -> Bas -> Copier.
+Amélioration de la détection de fin de génération : analyse ciblée des nœuds aux coordonnées du bouton envoyer.
+Mise à jour de AutomationCoordinator pour utiliser isGenerationActiveAt(coords) lors de l'attente de la réponse.
+Changement de stratégie : Implémentation du détecteur de mouvement via les événements système (AccessibilityEvent) pour détecter la fin de génération.
+Refonte de AutomationCoordinator : Séquence Barre -> Retour -> Envoyer -> Attente Silence (3s) -> Bas -> Copier.

@@ -18,7 +18,7 @@ class CalibrationOverlayManager(
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private var overlayView: View? = null
     private val currentCoords = ProviderCoordinates()
-    private var step = 0 // 0: TextField, 1: SendButton, 2: CopyButton
+    private var step = 0 // 0: TextField, 1: BackButton, 2: SendButton, 3: ScrollDown, 4: CopyButton
 
     @SuppressLint("ClickableViewAccessibility", "InflateParams")
     fun show() {
@@ -58,15 +58,27 @@ class CalibrationOverlayManager(
                 currentCoords.textFieldX = x
                 currentCoords.textFieldY = y
                 step++
-                textView.text = "Cliquez sur : LE BOUTON ENVOYER"
+                textView.text = "Cliquez sur : LE BOUTON RETOUR (Pour fermer le clavier)"
             }
             1 -> {
+                currentCoords.backButtonX = x
+                currentCoords.backButtonY = y
+                step++
+                textView.text = "Cliquez sur : LE BOUTON ENVOYER"
+            }
+            2 -> {
                 currentCoords.sendButtonX = x
                 currentCoords.sendButtonY = y
                 step++
+                textView.text = "Cliquez sur : LE BOUTON DE BAS (Pour descendre)"
+            }
+            3 -> {
+                currentCoords.scrollDownButtonX = x
+                currentCoords.scrollDownButtonY = y
+                step++
                 textView.text = "Cliquez sur : LE BOUTON COPIER (Dernier message)"
             }
-            2 -> {
+            4 -> {
                 currentCoords.copyButtonX = x
                 currentCoords.copyButtonY = y
                 onCalibrationFinished(currentCoords)
@@ -78,7 +90,9 @@ class CalibrationOverlayManager(
 
     private fun hide() {
         overlayView?.let {
-            windowManager.removeView(it)
+            if (it.windowToken != null) {
+                windowManager.removeView(it)
+            }
             overlayView = null
         }
     }

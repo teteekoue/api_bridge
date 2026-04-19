@@ -24,9 +24,24 @@ class ClickAccessibilityService : AccessibilityService() {
         Log.d(TAG, "Accessibility Service Connected")
     }
 
+    private var lastEventTime = System.currentTimeMillis()
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // Log events for debugging if needed
-        // Log.d(TAG, "Accessibility Event: ${event?.eventType}, Text: ${event?.text}")
+        // Chaque fois que le contenu de la fenêtre change, on met à jour le chronomètre
+        if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED || 
+            event?.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED) {
+            lastEventTime = System.currentTimeMillis()
+        }
+    }
+
+    // Retourne le temps écoulé depuis le dernier changement en millisecondes
+    fun getTimeSinceLastUpdate(): Long {
+        return System.currentTimeMillis() - lastEventTime
+    }
+
+    // Réinitialise le chronomètre manuellement (utile juste avant de cliquer sur envoyer)
+    fun resetEventTimer() {
+        lastEventTime = System.currentTimeMillis()
     }
 
     override fun onInterrupt() {
@@ -128,16 +143,49 @@ class ClickAccessibilityService : AccessibilityService() {
         return null
     }
     
-    // Public method to check if generation is active
-    fun isGenerationActive(): Boolean {
-        val stopNode = findStopButtonNode()
-        if (stopNode != null) {
-            Log.d(TAG, "Stop button found, generation is active.")
-            stopNode.recycle()
-            return true
+    // Public method to check if generation is active by looking at specific coordinates
+    fun isGenerationActiveAt(x: Float, y: Float): Boolean {
+        val node = findNodeAt(x, y)
+        if (node != null) {
+            val text = node.text?.toString() ?: ""
+            val desc = node.contentDescription?.toString() ?: ""
+            val className = node.className?.toString() ?: ""
+            
+            val stopKeywords = listOf("Stop", "Arrêter", "Cancel", "Annuler", "Generating", "En cours")
+            val isActive = stopKeywords.any { 
+                text.contains(it, ignoreCase = true) || desc.contains(it, ignoreCase = true) 
+            }
+            
+            if (isActive) {
+                Log.d(TAG, "Generation detected at coords via text/desc: $text | $desc")
+                node.recycle()
+                return true
+            }
+            node.recycle()
         }
-        Log.d(TAG, "No definitive stop button found. Assuming generation is not active or not detectable by this method.")
-        return false
+        
+        // Backup: still check globally if something was missed
+        return isGenerationActive()
+    }
+
+    fun findNodeAt(x: Float, y: Float): AccessibilityNodeInfo? {
+        val rootNode = rootInActiveWindow ?: return null
+        return findNodeAtRecursive(rootNode, x.toInt(), y.toInt())
+    }
+
+    private fun findNodeAtRecursive(node: AccessibilityNodeInfo, x: Int, y: Int): AccessibilityNodeInfo? {
+        val rect = android.graphics.Rect()
+        node.getBoundsInScreen(rect)
+        if (rect.contains(x, y)) {
+            // Check children first for more specificity
+            for (i in 0 until node.childCount) {
+                val child = node.getChild(i) ?: continue
+                val result = findNodeAtRecursive(child, x, y)
+                if (result != null) return result
+            }
+            return AccessibilityNodeInfo.obtain(node)
+        }
+        return null
     }
     
     // --- Action Methods ---
@@ -153,6 +201,25 @@ class ClickAccessibilityService : AccessibilityService() {
             node?.recycle() // Recycle if node is not null but not clickable
             false
         }
+    }
+
+    fun clickAt(x: Float, y: Float): Boolean {
+        Log.d(TAG, "Attempting to click at coordinates: ($x, $y)")
+        val path = Path()
+        path.moveTo(x, y)
+        val gestureBuilder = GestureDescription.Builder()
+        gestureBuilder.addStroke(GestureDescription.StrokeDescription(path, 0, 100))
+        return dispatchGesture(gestureBuilder.build(), object : GestureResultCallback() {
+            override fun onCompleted(gestureDescription: GestureDescription?) {
+                super.onCompleted(gestureDescription)
+                Log.d(TAG, "Gesture completed successfully at ($x, $y)")
+            }
+
+            override fun onCancelled(gestureDescription: GestureDescription?) {
+                super.onCancelled(gestureDescription)
+                Log.e(TAG, "Gesture cancelled at ($x, $y)")
+            }
+        }, null)
     }
     
     // pasteText now uses the public findEditableNode()
