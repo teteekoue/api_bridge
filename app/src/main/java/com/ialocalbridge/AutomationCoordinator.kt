@@ -25,13 +25,13 @@ class AutomationCoordinator(private val context: Context) {
         delay(1500)
         service.clickAt(coords.sendButtonX, coords.sendButtonY)
         
-        // 2. Détection de fin (Swipe Loop 4s avec 3 cycles de stabilité)
+        // 2. Détection de fin (Mixte : Empreinte globale + Détection directe du bouton)
         delay(4000)
-        var lastText = ""
+        var lastScreenFingerprint = ""
         var isFinished = false
         var stabilityCounter = 0
         val requiredStability = 3
-        val timeoutMax = 120000L // Augmenté à 2 min pour les messages très longs
+        val timeoutMax = 120000L
         val startTime = System.currentTimeMillis()
         val metrics = context.resources.displayMetrics
         val centerX = metrics.widthPixels / 2f
@@ -40,23 +40,39 @@ class AutomationCoordinator(private val context: Context) {
 
         while (!isFinished && (System.currentTimeMillis() - startTime) < timeoutMax) {
             service.performSwipe(centerX, startY, centerX, endY)
-            delay(1500) // Attente que le swipe se termine et que l'UI se stabilise
+            delay(1500) // Attente stabilisation UI après swipe
             
-            val currentLastText = service.getLastVisibleText()
-            Log.d(TAG, "Detection - Texte: '${if(currentLastText.length > 20) currentLastText.take(20) + "..." else currentLastText}' | Stabilité: $stabilityCounter/$requiredStability")
+            // MÉTHODE A : Détection directe du bouton Copier aux coordonnées
+            val isCopyButtonVisible = service.isNodeAtMatchingSignature(
+                coords.copyButtonX, 
+                coords.copyButtonY, 
+                coords.copyButtonResourceId, 
+                coords.copyButtonClassName
+            )
+            
+            if (isCopyButtonVisible) {
+                Log.d(TAG, "Succès : Bouton Copier détecté aux coordonnées ! Fin de génération.")
+                isFinished = true
+                continue // On sort de la boucle immédiatement
+            }
 
-            if (currentLastText.isNotEmpty() && currentLastText == lastText) {
+            // MÉTHODE B : Empreinte globale de l'écran (Stabilité totale)
+            val currentFingerprint = service.getAllVisibleText()
+            
+            if (currentFingerprint.isNotEmpty() && currentFingerprint == lastScreenFingerprint) {
                 stabilityCounter++
+                Log.d(TAG, "Stabilité Écran: $stabilityCounter/$requiredStability (Pas de changement détecté)")
                 if (stabilityCounter >= requiredStability) {
-                    Log.d(TAG, "Génération terminée (Stable pendant $requiredStability cycles)")
+                    Log.d(TAG, "Génération terminée par stabilité globale.")
                     isFinished = true
                 } else {
-                    delay(4000) // Attente entre deux vérifications
+                    delay(4000)
                 }
             } else {
-                lastText = currentLastText
-                stabilityCounter = 0 // Reset si le texte a bougé
-                delay(4000) // Attente entre deux vérifications
+                lastScreenFingerprint = currentFingerprint
+                stabilityCounter = 0
+                Log.d(TAG, "L'écran bouge encore (IA en cours ou défilement...)")
+                delay(4000)
             }
         }
         

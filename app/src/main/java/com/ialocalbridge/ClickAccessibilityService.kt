@@ -98,6 +98,32 @@ class ClickAccessibilityService : AccessibilityService() {
         return null
     }
 
+    fun getAllVisibleText(): String {
+        val rootNode = rootInActiveWindow ?: return ""
+        val texts = mutableListOf<String>()
+        findAllTextsRecursiveSimple(rootNode, texts)
+        return texts.joinToString("|")
+    }
+
+    private fun findAllTextsRecursiveSimple(node: AccessibilityNodeInfo, texts: MutableList<String>) {
+        val text = node.text?.toString() ?: node.contentDescription?.toString() ?: ""
+        if (text.isNotEmpty()) {
+            texts.add(text)
+        }
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i) ?: continue
+            findAllTextsRecursiveSimple(child, texts)
+        }
+    }
+
+    fun isNodeAtMatchingSignature(x: Float, y: Float, targetResId: String?, targetClassName: String?): Boolean {
+        val node = findNodeAt(x, y) ?: return false
+        val matches = (targetResId != null && node.viewIdResourceName == targetResId) ||
+                      (targetClassName != null && node.className?.toString() == targetClassName)
+        node.recycle()
+        return matches
+    }
+
     fun getLastVisibleText(): String {
         val rootNode = rootInActiveWindow ?: return ""
         val texts = mutableListOf<Pair<String, Int>>()
