@@ -1,30 +1,33 @@
-# Mise à jour : Version Finale Stable (v2.0)
+# Mise à jour : Version Asynchrone v3.0 (Polling & Brute-Force)
 
-Cette version transforme le smartphone en une passerelle API robuste pour les IA mobiles grâce à une approche mécanique et morphologique.
+Cette version résout définitivement les problèmes de déconnexion ("Aborted") sur les messages longs et simplifie la détection de fin de génération.
 
 ## 🚀 Nouvelles Fonctionnalités & Améliorations
 
-### 1. Système de Calibration Intelligent
-*   **Calibration à 3 points uniquement** : Barre de texte, Bouton Envoyer, Bouton Copier.
-*   **Mode Défilement** : Pendant la calibration, un bouton permet de rendre l'overlay transparent pour manipuler l'application d'IA (ouvrir le clavier, défiler l'historique) avant de marquer les points.
-*   **Mémoire Morphologique** : Lors du clic sur le bouton "Copier", l'application enregistre son ADN technique (Resource ID, Classe Android, Description).
+### 1. Architecture Asynchrone (Polling)
+*   **Fin des Timeouts HTTP** : Le serveur ne maintient plus de connexion ouverte pendant la génération.
+*   **Point `/ask`** : Déclenche l'automatisation en arrière-plan et retourne immédiatement un `jobId` unique.
+*   **Point `/result?id=...`** : Permet au client de venir chercher le résultat quand il le souhaite. Répond `STILL_WORKING` tant que l'IA n'a pas fini.
+*   **Patience Illimitée** : Le système supporte désormais des sessions allant jusqu'à **3 heures**.
 
-### 2. Détection de Fin de Génération "Physique"
-*   **Boucle de Stabilité (4s)** : L'application effectue un balayage (Swipe) long toutes les 4 secondes et compare le dernier texte visible en bas à droite de l'écran.
-*   **Verdict Mathématique** : Si le texte reste identique après un swipe, la génération est considérée comme terminée. Cela évite les erreurs liées aux signaux système bloqués.
+### 2. Stratégie de Détection "Click & Verify"
+*   **Approche Brute-Force** : Au lieu d'analyser l'état technique des boutons (souvent trompeur), l'application tente de copier la réponse toutes les 3 secondes.
+*   **Cycle Mécanique** : Swipe vers le bas -> Clic aveugle aux coordonnées calibrées -> Lecture du presse-papier.
+*   **Preuve par le Résultat** : La génération est considérée terminée **uniquement** quand le contenu du presse-papier change. C'est la méthode la plus fiable contre les interfaces IA instables.
 
-### 3. Capture de Réponse Haute Fiabilité
-*   **Swipe Ultime** : Une fois la fin détectée, un balayage final aligne parfaitement le dernier message.
-*   **Recherche Morphologique** : Si le clic aux coordonnées échoue, l'application utilise l'ADN enregistré pour retrouver le bouton Copier n'importe où sur l'écran.
-*   **Triple Retry avec "Secousse"** : En cas d'échec de copie, l'application fait un nouveau swipe pour forcer l'interface à rafraîchir ses boutons et réessaye jusqu'à 3 fois.
+### 3. Dashboard Web Intelligent
+*   **Automated Polling** : Le tableau de bord web intègre désormais une logique JavaScript qui gère seule la boucle `/ask` -> `/result`.
+*   **Suivi en Temps Réel** : Affiche le statut "L'IA travaille toujours..." avec le compteur de tentatives.
 
-### 4. Serveur API Optimisé
-*   **Exécution sur Main Looper** : Toutes les actions d'automation sont forcées sur le thread principal d'Android, éliminant les erreurs de threading.
-*   **CORS & POST** : Support complet des requêtes cross-origin et parsing robuste du corps des messages.
+### 4. Stabilité Système
+*   **Main Looper Garanti** : L'automation tourne dans des coroutines gérées par le handler principal, assurant qu'aucun swipe ou clic n'est ignoré.
+*   **Délai de Swipe Réduit** : Passage à 3 secondes pour plus de réactivité sans sacrifier la stabilité.
 
-## 🛠️ Schéma de Fonctionnement
-1. **Réception** : Le serveur reçoit la question via HTTP POST.
-2. **Injection** : Clic barre -> Collage -> Touche Retour (ferme le clavier) -> Attente 1.2s -> Clic Envoyer.
-3. **Attente** : Boucle de Swipes longs (4s) jusqu'à stabilité du texte final.
-4. **Extraction** : Triple tentative de copie (Coordonnées + Morphologie) avec swipes de sécurité.
-5. **Réponse** : Le contenu du presse-papier est renvoyé à l'utilisateur.
+## 🛠️ Nouveau Schéma de Fonctionnement
+1. **Requête Client** : Appelle `/ask?q=...`.
+2. **Réponse Serveur** : Retourne immédiatement un UUID (Job ID).
+3. **Travail Background** :
+   - Injection de la question.
+   - Boucle (3s) : Swipe -> Clic Copier -> Vérif Presse-papier.
+4. **Polling Client** : Le client appelle `/result` toutes les 3-5s.
+5. **Livraison** : Dès que le presse-papier a changé, le résultat est stocké et livré au prochain appel du client.

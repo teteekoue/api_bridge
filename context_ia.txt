@@ -1,33 +1,7 @@
-Mise à jour du modèle ProviderCoordinates pour inclure 5 points de calibration : Barre de message, Bouton Retour, Bouton Envoyer, Bouton de Bas, Bouton Copier.
-Mise à jour de CalibrationOverlayManager pour gérer les 5 étapes de calibration.
-Ajout de la méthode clickAt(x, y) dans ClickAccessibilityService pour supporter le clic par coordonnées.
-Mise à jour de AutomationCoordinator pour implémenter la nouvelle séquence de clics par coordonnées : Barre -> Retour -> Envoyer -> Bas -> Copier.
-Amélioration de la détection de fin de génération : analyse ciblée des nœuds aux coordonnées du bouton envoyer.
-Mise à jour de AutomationCoordinator pour utiliser isGenerationActiveAt(coords) lors de l'attente de la réponse.
-Changement de stratégie : Implémentation du détecteur de mouvement via les événements système (AccessibilityEvent) pour détecter la fin de génération.
-Refonte de AutomationCoordinator : Séquence Barre -> Retour -> Envoyer -> Attente Silence (3s) -> Bas -> Copier.
-Correction de l'erreur de compilation : ré-ajout de la méthode isGenerationActive() dans ClickAccessibilityService.
-Refonte de la calibration : passage au système de 'Viseur Mobile'. Suppression de la calibration du bouton Retour (remplacé par l'action système).
-Mise à jour de CalibrationOverlayManager : implémentation du viseur déplaçable et gestion des fenêtres Android pour permettre l'interaction avec l'application cible.
-Correction du serveur : ajout des headers CORS complets et parsing robuste du corps de la requête POST.
-Refonte de CalibrationOverlayManager : implémentation du rectangle de calibrage déplaçable avec enregistrement des clics internes.
-Optimisation de AutomationCoordinator : ajout d'un délai de 1s après la fermeture du clavier et sécurisation de la lecture finale.
-Correction de l'erreur de compilation : remplacement de l'icône ic_menu_move par ic_menu_directions.
-Correction critique du serveur : exécution de l'automation sur le Main Looper pour éviter les erreurs de Handler/Thread.
-Retour au système de calibration plein écran avec ajout d'un bouton de bascule 'Mode Défilement/Mode Clic'.
-Refonte de CalibrationOverlayManager : retour au plein écran avec gestion dynamique de la transparence tactile pour permettre le défilement.
-Mise à jour du Dashboard : amélioration de la gestion des erreurs et de l'affichage du statut de la requête.
-Correction du XML : suppression de l'attribut invalide android:gap dans calibration_overlay.xml.
-Simplification du modèle : suppression du bouton de bas, remplacé par des gestes de balayage automatiques.
-Enrichissement du service d'accessibilité : ajout de swipe(x1, y1, x2, y2) et de la recherche de nœuds par morphologie (texte/desc).
-Refonte de l'orchestration : remplacement du bouton de bas par un Triple Swipe et ajout d'une recherche morphologique de secours pour le bouton copier.
-Mise à jour de l'interface de calibration : simplification à 3 points (Barre, Envoyer, Copier).
-Implémentation de la détection par Signature Technique : capture de l'ID ressource et de la classe du bouton Envoyer pour détecter la fin de génération.
-Mise à jour de AutomationCoordinator : intégration de la capture de signature du bouton Envoyer et attente du retour à l'état initial.
-Correction de l'erreur de compilation : ré-implémentation de la méthode obligatoire onAccessibilityEvent dans ClickAccessibilityService.
-Mise à jour du service : ajout de getLastVisibleText() pour la détection de fin et performSwipe() pour le défilement.
-Refonte de l'orchestration : boucle de Swipe Long toutes les 4 secondes avec comparaison du dernier texte visible pour détecter la fin de génération.
-Perfectionnement : ajout des champs morphologiques (ID, Classe, Description) pour le bouton Copier dans le modèle.
-Mise à jour du calibrage : capture automatique des propriétés techniques (Morphologie) du bouton Copier lors du clic de validation.
-Amélioration du service : ajout de findNodeByMorphology() pour retrouver le bouton Copier même s'il s'est déplacé.
-Mise à jour de AutomationCoordinator : ajout du Swipe Ultime et d'une boucle de récupération morphologique pour le bouton Copier.
+ÉTAT DU PROJET : ARCHITECTURE ASYNCHRONE (POLLING) - STABLE
+- Architecture : Système de Polling (/ask pour créer, /result pour récupérer) éliminant les timeouts HTTP "Aborted".
+- Stratégie Automation : "Click & Verify" mécanique. Swipe 3s -> Clic aveugle -> Vérification du changement de presse-papier.
+- Détection de fin : Validée par la réussite physique de l'action de copie, indépendante de l'analyse du code source UI.
+- Timeouts : Étendus à 3 heures (10800s) pour supporter les générations d'IA très longues.
+- Interface Web : Dashboard mis à jour avec gestion automatique du cycle de vie du Job (Polling JS).
+- Robustesse : Suppression de la latence liée à l'empreinte globale de l'écran.
