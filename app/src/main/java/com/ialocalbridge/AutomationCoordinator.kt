@@ -31,7 +31,7 @@ class AutomationCoordinator(private val context: Context) {
         var isFinished = false
         var stabilityCounter = 0
         val requiredStability = 3
-        val timeoutMax = 120000L
+        val timeoutMax = 600000L // Augmenté à 10 minutes pour les générations très longues
         val startTime = System.currentTimeMillis()
         val metrics = context.resources.displayMetrics
         val centerX = metrics.widthPixels / 2f

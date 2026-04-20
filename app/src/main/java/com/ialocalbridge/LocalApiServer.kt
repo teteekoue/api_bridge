@@ -58,7 +58,11 @@ class LocalApiServer(private val port: Int, private val context: Context) : Nano
                             }
                         }
                         
-                        val responseText = future.get() // Attendre le résultat
+                        val responseText = try {
+                            future.get(605, java.util.concurrent.TimeUnit.SECONDS) // Attente de 10 min + marge
+                        } catch (e: Exception) {
+                            "Erreur: Le délai d'attente de 10 minutes a été dépassé ou l'opération a été interrompue."
+                        }
                         val response = newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, responseText)
                         addCORSHeaders(response)
                         response
