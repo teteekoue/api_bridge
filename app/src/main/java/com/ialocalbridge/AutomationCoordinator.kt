@@ -25,11 +25,13 @@ class AutomationCoordinator(private val context: Context) {
         delay(1500)
         service.clickAt(coords.sendButtonX, coords.sendButtonY)
         
-        // 2. Détection de fin (Swipe Loop 4s)
+        // 2. Détection de fin (Swipe Loop 4s avec 3 cycles de stabilité)
         delay(4000)
         var lastText = ""
         var isFinished = false
-        val timeoutMax = 90000L
+        var stabilityCounter = 0
+        val requiredStability = 3
+        val timeoutMax = 120000L // Augmenté à 2 min pour les messages très longs
         val startTime = System.currentTimeMillis()
         val metrics = context.resources.displayMetrics
         val centerX = metrics.widthPixels / 2f
@@ -38,13 +40,23 @@ class AutomationCoordinator(private val context: Context) {
 
         while (!isFinished && (System.currentTimeMillis() - startTime) < timeoutMax) {
             service.performSwipe(centerX, startY, centerX, endY)
-            delay(1200)
+            delay(1500) // Attente que le swipe se termine et que l'UI se stabilise
+            
             val currentLastText = service.getLastVisibleText()
+            Log.d(TAG, "Detection - Texte: '${if(currentLastText.length > 20) currentLastText.take(20) + "..." else currentLastText}' | Stabilité: $stabilityCounter/$requiredStability")
+
             if (currentLastText.isNotEmpty() && currentLastText == lastText) {
-                isFinished = true
+                stabilityCounter++
+                if (stabilityCounter >= requiredStability) {
+                    Log.d(TAG, "Génération terminée (Stable pendant $requiredStability cycles)")
+                    isFinished = true
+                } else {
+                    delay(4000) // Attente entre deux vérifications
+                }
             } else {
                 lastText = currentLastText
-                delay(4000)
+                stabilityCounter = 0 // Reset si le texte a bougé
+                delay(4000) // Attente entre deux vérifications
             }
         }
         
