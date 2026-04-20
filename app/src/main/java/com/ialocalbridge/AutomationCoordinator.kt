@@ -25,7 +25,7 @@ class AutomationCoordinator(private val context: Context) {
         delay(1500)
         service.clickAt(coords.sendButtonX, coords.sendButtonY)
         
-        // 2. Détection de fin (Exclusion : Uniquement présence du bouton Copier cliquable)
+        // 2. Détection de fin (Stratégie : Clic Aveugle + Vérification Presse-papier)
         delay(3000)
         var isFinished = false
         val timeoutMax = 10800000L // 3 heures
@@ -35,24 +35,28 @@ class AutomationCoordinator(private val context: Context) {
         val startY = metrics.heightPixels * 0.8f
         val endY = metrics.heightPixels * 0.2f
 
+        Log.d(TAG, "Démarrage de la boucle de détection (Timeout: 3h, Cycle: 3s)")
+
         while (!isFinished && (System.currentTimeMillis() - startTime) < timeoutMax) {
+            // A. On force le défilement vers le bas
             service.performSwipe(centerX, startY, centerX, endY)
-            delay(1000) // Attente courte après swipe
+            delay(1000) // Attente stabilisation après swipe
             
-            // Vérification si le bouton Copier est présent ET cliquable
-            val isCopyButtonReady = service.isNodeAtMatchingSignature(
-                coords.copyButtonX, 
-                coords.copyButtonY, 
-                coords.copyButtonResourceId, 
-                coords.copyButtonClassName
-            )
+            // B. On tente le clic aux coordonnées du bouton Copier (même s'il semble absent)
+            Log.d(TAG, "Tentative de clic au bouton Copier aux coordonnées (${coords.copyButtonX}, ${coords.copyButtonY})")
+            service.clickAt(coords.copyButtonX, coords.copyButtonY)
             
-            if (isCopyButtonReady) {
-                Log.d(TAG, "Succès : Bouton Copier prêt et cliquable ! Fin de génération.")
+            // C. On attend un peu que le système traite la copie
+            delay(1000)
+            
+            // D. VERIFICATION ULTIME : Est-ce que le presse-papier a changé ?
+            val currentClipboard = ClipboardHelper.getFromClipboard(context)
+            if (currentClipboard.isNotEmpty() && currentClipboard != oldClipboard) {
+                Log.d(TAG, "SUCCÈS : Le presse-papier a changé ! Génération terminée.")
                 isFinished = true
             } else {
-                Log.d(TAG, "Bouton Copier non détecté ou non cliquable, nouvelle tentative dans 3s...")
-                delay(2000) // Complète le cycle de 3s (1s après swipe + 2s ici)
+                Log.d(TAG, "Rien dans le presse-papier ou contenu identique. Nouvelle tentative dans 1s...")
+                delay(1000) // Pour compléter le cycle de 3s environ
             }
         }
         
