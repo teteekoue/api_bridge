@@ -15,6 +15,15 @@ class LocalApiServer(private val port: Int, private val context: Context) : Nano
 
     private val coordinator = AutomationCoordinator(context)
     private val mainHandler = Handler(Looper.getMainLooper())
+    
+    // Stockage des résultats des jobs
+    private val jobs = HashMap<String, JobStatus>()
+
+    data class JobStatus(
+        val status: String, // "pending", "completed", "error"
+        val result: String? = null,
+        val timestamp: Long = System.currentTimeMillis()
+    )
 
     override fun serve(session: IHTTPSession): Response {
         val uri = session.uri
@@ -45,25 +54,22 @@ class LocalApiServer(private val port: Int, private val context: Context) : Nano
                     val question = params["q"]?.get(0) ?: params["question"]?.get(0)
                     
                     if (question != null) {
-                        // Exécuter l'automation sur le thread principal pour éviter les erreurs de Looper
-                        val future = CompletableFuture<String>()
+                        val jobId = java.util.UUID.randomUUID().toString()
+                        jobs[jobId] = JobStatus("pending")
+
+                        // Lancer l'automation en arrière-plan
                         mainHandler.post {
                             runBlocking {
                                 try {
                                     val result = coordinator.processQuestion(question)
-                                    future.complete(result)
+                                    jobs[jobId] = JobStatus("completed", result)
                                 } catch (e: Exception) {
-                                    future.complete("Erreur Automation: ${e.message}")
+                                    jobs[jobId] = JobStatus("error", "Erreur: ${e.message}")
                                 }
                             }
                         }
                         
-                        val responseText = try {
-                            future.get(10805, java.util.concurrent.TimeUnit.SECONDS) // Attente de 3h + marge
-                        } catch (e: Exception) {
-                            "Erreur: Le délai d'attente de 3 heures a été dépassé ou l'opération a été interrompue."
-                        }
-                        val response = newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, responseText)
+                        val response = newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, jobId)
                         addCORSHeaders(response)
                         response
                     } else {
@@ -76,6 +82,21 @@ class LocalApiServer(private val port: Int, private val context: Context) : Nano
                     addCORSHeaders(response)
                     response
                 }
+            }
+            "/result" -> {
+                val jobId = session.parameters["id"]?.get(0)
+                val job = jobs[jobId]
+                
+                val responseText = when {
+                    jobId == null -> "Erreur: ID manquant"
+                    job == null -> "Erreur: Job introuvable"
+                    job.status == "pending" -> "STILL_WORKING"
+                    else -> job.result ?: "Erreur inconnue"
+                }
+                
+                val response = newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, responseText)
+                addCORSHeaders(response)
+                response
             }
             "/status" -> {
                 val isServiceActive = ClickAccessibilityService.instance != null
