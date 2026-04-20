@@ -51,11 +51,12 @@ object WebInterface {
     </div>
 
     <script>
-        const API_URL = "http://$ipAddress:$port/ask";
+        const BASE_URL = "http://$ipAddress:$port";
         
         function copyUrl() {
-            navigator.clipboard.writeText(API_URL);
-            alert("URL copiée !");
+            const askUrl = BASE_URL + "/ask";
+            navigator.clipboard.writeText(askUrl);
+            alert("URL de base copiée !");
         }
 
         async function send() {
@@ -74,25 +75,47 @@ object WebInterface {
             logs.innerText = "";
 
             const loadingId = 'L-' + Date.now();
-            addMsg("L'IA génère la réponse (attente silence)...", 'bot', loadingId);
+            const loadingMsg = addMsg("Démarrage de l'automatisation...", 'bot', loadingId);
 
             try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 min timeout
-
-                const resp = await fetch(API_URL, {
+                // ÉTAPE 1 : Créer le job
+                const askResp = await fetch(BASE_URL + "/ask", {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: 'q=' + encodeURIComponent(text),
-                    signal: controller.signal
+                    body: 'q=' + encodeURIComponent(text)
                 });
 
-                if (!resp.ok) throw new Error("Erreur HTTP " + resp.status);
+                if (!askResp.ok) throw new Error("Erreur lors de la création du job (" + askResp.status + ")");
                 
-                const data = await resp.text();
-                document.getElementById(loadingId).innerText = data;
+                const jobId = await askResp.text();
+                loadingMsg.innerText = "Job démarré (ID: " + jobId + "). Attente de la réponse de l'IA...";
+
+                // ÉTAPE 2 : Polling (Vérification périodique)
+                let isFinished = false;
+                let attempts = 0;
+                
+                while (!isFinished) {
+                    attempts++;
+                    await new Promise(r => setTimeout(r, 3000)); // Attente 3s
+                    
+                    const resultResp = await fetch(BASE_URL + "/result?id=" + jobId);
+                    if (!resultResp.ok) throw new Error("Erreur de polling (" + resultResp.status + ")");
+                    
+                    const result = await resultResp.text();
+                    
+                    if (result !== "STILL_WORKING") {
+                        loadingMsg.innerText = result;
+                        isFinished = true;
+                    } else {
+                        loadingMsg.innerText = "L'IA travaille toujours... (Tentative " + attempts + ")";
+                    }
+                    
+                    if (attempts > 1200) { // Timeout client de 1h
+                        throw new Error("Délai d'attente dépassé (1 heure)");
+                    }
+                }
             } catch (e) {
-                document.getElementById(loadingId).innerText = "ERREUR : " + e.message;
+                loadingMsg.innerText = "ERREUR : " + e.message;
                 logs.innerText = "Détails: " + e.toString();
                 console.error(e);
             } finally {
@@ -108,8 +131,10 @@ object WebInterface {
             div.className = 'msg ' + type;
             if(id) div.id = id;
             div.innerText = text;
-            document.getElementById('msgs').appendChild(div);
-            document.getElementById('msgs').scrollTop = document.getElementById('msgs').scrollHeight;
+            const container = document.getElementById('msgs');
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+            return div;
         }
     </script>
 </body>
