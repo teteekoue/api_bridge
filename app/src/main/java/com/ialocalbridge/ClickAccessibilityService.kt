@@ -118,8 +118,9 @@ class ClickAccessibilityService : AccessibilityService() {
 
     fun isNodeAtMatchingSignature(x: Float, y: Float, targetResId: String?, targetClassName: String?): Boolean {
         val node = findNodeAt(x, y) ?: return false
-        val matches = (targetResId != null && node.viewIdResourceName == targetResId) ||
-                      (targetClassName != null && node.className?.toString() == targetClassName)
+        val matches = ((targetResId != null && node.viewIdResourceName == targetResId) ||
+                      (targetClassName != null && node.className?.toString() == targetClassName)) &&
+                      node.isClickable
         node.recycle()
         return matches
     }

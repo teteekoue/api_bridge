@@ -25,13 +25,10 @@ class AutomationCoordinator(private val context: Context) {
         delay(1500)
         service.clickAt(coords.sendButtonX, coords.sendButtonY)
         
-        // 2. Détection de fin (Mixte : Empreinte globale + Détection directe du bouton)
-        delay(4000)
-        var lastScreenFingerprint = ""
+        // 2. Détection de fin (Exclusion : Uniquement présence du bouton Copier cliquable)
+        delay(3000)
         var isFinished = false
-        var stabilityCounter = 0
-        val requiredStability = 3
-        val timeoutMax = 600000L // Augmenté à 10 minutes pour les générations très longues
+        val timeoutMax = 10800000L // 3 heures
         val startTime = System.currentTimeMillis()
         val metrics = context.resources.displayMetrics
         val centerX = metrics.widthPixels / 2f
@@ -40,39 +37,22 @@ class AutomationCoordinator(private val context: Context) {
 
         while (!isFinished && (System.currentTimeMillis() - startTime) < timeoutMax) {
             service.performSwipe(centerX, startY, centerX, endY)
-            delay(1500) // Attente stabilisation UI après swipe
+            delay(1000) // Attente courte après swipe
             
-            // MÉTHODE A : Détection directe du bouton Copier aux coordonnées
-            val isCopyButtonVisible = service.isNodeAtMatchingSignature(
+            // Vérification si le bouton Copier est présent ET cliquable
+            val isCopyButtonReady = service.isNodeAtMatchingSignature(
                 coords.copyButtonX, 
                 coords.copyButtonY, 
                 coords.copyButtonResourceId, 
                 coords.copyButtonClassName
             )
             
-            if (isCopyButtonVisible) {
-                Log.d(TAG, "Succès : Bouton Copier détecté aux coordonnées ! Fin de génération.")
+            if (isCopyButtonReady) {
+                Log.d(TAG, "Succès : Bouton Copier prêt et cliquable ! Fin de génération.")
                 isFinished = true
-                continue // On sort de la boucle immédiatement
-            }
-
-            // MÉTHODE B : Empreinte globale de l'écran (Stabilité totale)
-            val currentFingerprint = service.getAllVisibleText()
-            
-            if (currentFingerprint.isNotEmpty() && currentFingerprint == lastScreenFingerprint) {
-                stabilityCounter++
-                Log.d(TAG, "Stabilité Écran: $stabilityCounter/$requiredStability (Pas de changement détecté)")
-                if (stabilityCounter >= requiredStability) {
-                    Log.d(TAG, "Génération terminée par stabilité globale.")
-                    isFinished = true
-                } else {
-                    delay(4000)
-                }
             } else {
-                lastScreenFingerprint = currentFingerprint
-                stabilityCounter = 0
-                Log.d(TAG, "L'écran bouge encore (IA en cours ou défilement...)")
-                delay(4000)
+                Log.d(TAG, "Bouton Copier non détecté ou non cliquable, nouvelle tentative dans 3s...")
+                delay(2000) // Complète le cycle de 3s (1s après swipe + 2s ici)
             }
         }
         
