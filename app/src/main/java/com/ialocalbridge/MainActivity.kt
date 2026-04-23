@@ -83,7 +83,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        binding.btnDelete_calibration.setOnClickListener {
+        binding.btnDeleteCalibration.setOnClickListener {
             val selected = binding.spinnerCalibration.selectedItem?.toString()
             if (selected != null && selected != "Aucune calibration trouvée") {
                 android.app.AlertDialog.Builder(this)
