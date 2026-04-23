@@ -79,7 +79,7 @@ class LocalApiServer(private val port: Int, private val context: Context) : Nano
     }
 
     private fun handleAskRequest(session: IHTTPSession): Response {
-        try {
+        return try {
             val params = if (session.method == Method.POST) {
                 val files = HashMap<String, String>()
                 session.parseBody(files)
@@ -91,7 +91,7 @@ class LocalApiServer(private val port: Int, private val context: Context) : Nano
             val question = params["q"]?.get(0) ?: params["question"]?.get(0)
             
             if (question != null) {
-                return startAutomationJob(question)
+                startAutomationJob(question)
             } else {
                 val response = newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "Erreur: Paramètre 'q' manquant")
                 addCORSHeaders(response)
