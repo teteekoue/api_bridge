@@ -140,8 +140,6 @@ class FloatingWindowService : Service() {
                 isServerRunning = false
                 btnStartApi.text = "API: OFF"
                 btnStartApi.setBackgroundColor(Color.RED)
-                btnToggleFile.text = "FILE: OFF"
-                btnToggleFile.setBackgroundColor(Color.parseColor("#9E9E9E"))
                 Toast.makeText(this, "Serveur arrêté", Toast.LENGTH_SHORT).show()
             }
         }
