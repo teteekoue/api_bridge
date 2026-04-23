@@ -1,4 +1,4 @@
 <resources>
-    <string name="app_name">IA-Local-Bridge</string>
-    <string name="accessibility_description">Permet à l\'IA-Local-Bridge de simuler des clics pour interagir avec les applications d\'IA.</string>
+    <string name="app_name">NEMAPI Bridge</string>
+    <string name="accessibility_description">Permet à l\'NEMAPI Bridge de simuler des clics pour interagir avec les applications d\'IA.</string>
 </resources>

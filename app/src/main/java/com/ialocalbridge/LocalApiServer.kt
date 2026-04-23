@@ -72,6 +72,14 @@ class LocalApiServer(private val port: Int, private val context: Context) : Nano
                     val status = if (isServiceActive) "Ready" else "Accessibility Service Disabled"
                     newFixedLengthResponse(status)
                 }
+                "/stop" -> {
+                    mainHandler.post {
+                        runBlocking {
+                            coordinator.stopGeneration()
+                        }
+                    }
+                    newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, "STOP_SENT")
+                }
                 else -> newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found")
             }
             addCORSHeaders(response)

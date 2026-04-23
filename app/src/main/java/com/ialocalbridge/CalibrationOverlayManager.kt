@@ -107,11 +107,45 @@ class CalibrationOverlayManager(
                     }
                 }
 
-                onCalibrationFinished(currentCoords)
-                hide()
-                Toast.makeText(context, "Calibration terminée avec succès !", Toast.LENGTH_SHORT).show()
+                showNameDialog()
             }
         }
+    }
+
+    private fun showNameDialog() {
+        val builder = android.app.AlertDialog.Builder(context)
+        builder.setTitle("Enregistrer la calibration")
+        
+        val input = android.widget.EditText(context)
+        input.hint = "Nom de l'application (ex: ChatGPT, DeepSeek...)"
+        builder.setView(input)
+
+        builder.setPositiveButton("Enregistrer") { _, _ ->
+            val name = input.text.toString().trim()
+            if (name.isNotEmpty()) {
+                val calibrationManager = CalibrationManager(context)
+                calibrationManager.saveCoordinates(name, currentCoords)
+                Toast.makeText(context, "Profil '$name' enregistré !", Toast.LENGTH_SHORT).show()
+                onCalibrationFinished(currentCoords)
+                hide()
+            } else {
+                Toast.makeText(context, "Le nom ne peut pas être vide", Toast.LENGTH_SHORT).show()
+                showNameDialog()
+            }
+        }
+        
+        builder.setCancelable(false)
+        val dialog = builder.create()
+        
+        // Indispensable pour afficher un dialogue depuis un service
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            dialog.window?.setType(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY)
+        } else {
+            @Suppress("DEPRECATION")
+            dialog.window?.setType(WindowManager.LayoutParams.TYPE_PHONE)
+        }
+        
+        dialog.show()
     }
 
     private fun hide() {

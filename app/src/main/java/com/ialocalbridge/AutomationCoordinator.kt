@@ -11,6 +11,15 @@ class AutomationCoordinator(private val context: Context) {
     private val calibrationManager = CalibrationManager(context)
     private val TAG = "AutomationCoordinator"
 
+    suspend fun stopGeneration(): String {
+        val service = accessibilityService ?: return "Erreur: Service non activé"
+        val coords = calibrationManager.getCoordinates("default_provider")
+        
+        // On clique simplement aux coordonnées du bouton d'envoi (qui est devenu STOP)
+        service.clickAt(coords.sendButtonX, coords.sendButtonY)
+        return "Commande STOP envoyée"
+    }
+
     suspend fun processQuestion(question: String): String {
         val service = accessibilityService ?: return "Erreur: Service d'accessibilité non activé"
         val coords = calibrationManager.getCoordinates("default_provider")

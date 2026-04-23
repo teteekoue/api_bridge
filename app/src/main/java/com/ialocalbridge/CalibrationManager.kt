@@ -17,4 +17,12 @@ class CalibrationManager(context: Context) {
         return if (json != null) gson.fromJson(json, ProviderCoordinates::class.java)
         else ProviderCoordinates()
     }
+
+    fun getAllProviderNames(): List<String> {
+        return prefs.all.keys.toList().filter { it != "last_used_provider" }
+    }
+
+    fun deleteProvider(name: String) {
+        prefs.edit().remove(name).apply()
+    }
 }
