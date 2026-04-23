@@ -12,8 +12,8 @@ import java.util.concurrent.TimeUnit
 class FileUploader {
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(60, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
         .build()
 
     private val TAG = "FileUploader"
@@ -21,56 +21,81 @@ class FileUploader {
     data class UploadResult(
         val success: Boolean,
         val url: String? = null,
-        val filename: String? = null,
-        val error: String? = null
+        val errorLog: String = ""
     )
 
-    fun uploadFile(file: File, originalFilename: String): UploadResult {
-        Log.d(TAG, "Uploading file: ${file.absolutePath} (Original name: $originalFilename)")
+    fun uploadWithFallback(file: File, filename: String): UploadResult {
+        val errors = StringBuilder()
+        Log.d(TAG, "Starting upload fallback chain for $filename")
         
-        val requestBody = MultipartBody.Builder()
-            .setType(MultipartBody.FORM)
-            .addFormDataPart(
-                "file",
-                originalFilename,
-                file.asRequestBody("application/octet-stream".toMediaTypeOrNull())
-            )
+        // 1. Catbox
+        try {
+            Log.d(TAG, "Trying Catbox...")
+            val url = uploadToCatbox(file, filename)
+            if (url != null) return UploadResult(true, url)
+            else errors.append("Catbox: Réponse invalide\n")
+        } catch (e: Exception) {
+            errors.append("Catbox: ${e.message}\n")
+        }
+
+        // 2. Tmp.ninja
+        try {
+            Log.d(TAG, "Trying Tmp.ninja...")
+            val url = uploadToTmpNinja(file, filename)
+            if (url != null) return UploadResult(true, url)
+            else errors.append("Tmp.ninja: Réponse invalide\n")
+        } catch (e: Exception) {
+            errors.append("Tmp.ninja: ${e.message}\n")
+        }
+
+        // 3. File.io
+        try {
+            Log.d(TAG, "Trying File.io...")
+            val url = uploadToFileIo(file, filename)
+            if (url != null) return UploadResult(true, url)
+            else errors.append("File.io: Erreur API\n")
+        } catch (e: Exception) {
+            errors.append("File.io: ${e.message}\n")
+        }
+
+        return UploadResult(false, errorLog = errors.toString())
+    }
+
+    private fun uploadToCatbox(file: File, filename: String): String? {
+        val body = MultipartBody.Builder().setType(MultipartBody.FORM)
+            .addFormDataPart("reqtype", "fileupload")
+            .addFormDataPart("fileToUpload", filename, file.asRequestBody("application/octet-stream".toMediaTypeOrNull()))
             .build()
+        val request = Request.Builder().url("https://catbox.moe/user/api.php").post(body).build()
+        client.newCall(request).execute().use { resp ->
+            val out = resp.body?.string()?.trim()
+            return if (resp.isSuccessful && out?.startsWith("http") == true) out else null
+        }
+    }
 
-        val request = Request.Builder()
-            .url("https://tmp.ninja/api.php?d=upload") // tmp.ninja utilise souvent api.php?d=upload
-            .post(requestBody)
+    private fun uploadToTmpNinja(file: File, filename: String): String? {
+        val body = MultipartBody.Builder().setType(MultipartBody.FORM)
+            .addFormDataPart("file", filename, file.asRequestBody("application/octet-stream".toMediaTypeOrNull()))
             .build()
+        val request = Request.Builder().url("https://tmp.ninja/api.php?d=upload").post(body).build()
+        client.newCall(request).execute().use { resp ->
+            val out = resp.body?.string()?.trim()
+            return if (resp.isSuccessful && out?.startsWith("http") == true) out else null
+        }
+    }
 
-        return try {
-            client.newCall(request).execute().use { response ->
-                val responseBody = response.body?.string()
-                Log.d(TAG, "Upload Response Code: ${response.code}")
-                Log.d(TAG, "Upload Response Body: $responseBody")
-
-                if (response.isSuccessful && responseBody != null) {
-                    if (responseBody.trim().startsWith("http")) {
-                        UploadResult(true, responseBody.trim(), originalFilename)
-                    } else {
-                        try {
-                            val json = JSONObject(responseBody)
-                            val url = if (json.has("url")) json.getString("url") else ""
-                            if (url.isNotEmpty()) {
-                                UploadResult(true, url, originalFilename)
-                            } else {
-                                UploadResult(false, error = "URL non trouvée dans JSON: $responseBody")
-                            }
-                        } catch (e: Exception) {
-                            UploadResult(false, error = "Réponse non reconnue: $responseBody")
-                        }
-                    }
-                } else {
-                    UploadResult(false, error = "Erreur HTTP ${response.code}: $responseBody")
-                }
+    private fun uploadToFileIo(file: File, filename: String): String? {
+        val body = MultipartBody.Builder().setType(MultipartBody.FORM)
+            .addFormDataPart("file", filename, file.asRequestBody("application/octet-stream".toMediaTypeOrNull()))
+            .build()
+        val request = Request.Builder().url("https://file.io").post(body).build()
+        client.newCall(request).execute().use { resp ->
+            val out = resp.body?.string()
+            if (resp.isSuccessful && out != null) {
+                val json = JSONObject(out)
+                return if (json.optBoolean("success")) json.optString("link") else null
             }
-        } catch (e: IOException) {
-            Log.e(TAG, "Upload error", e)
-            UploadResult(false, error = "Erreur réseau: ${e.message}")
+            return null
         }
     }
 }

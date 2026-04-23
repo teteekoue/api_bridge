@@ -29,11 +29,11 @@ class LocalApiServer(private val port: Int, private val context: Context) : Nano
         val timestamp: Long = System.currentTimeMillis()
     )
 
-    // Configurer NanoHTTPD pour utiliser le cache de l'app pour les fichiers temporaires
     init {
         val tempDir = File(context.cacheDir, "nanohttpd_temp")
         if (!tempDir.exists()) tempDir.mkdirs()
         System.setProperty("java.io.tmpdir", tempDir.absolutePath)
+        Log.d(TAG, "Server initialized at ${tempDir.absolutePath}")
     }
 
     override fun serve(session: IHTTPSession): Response {
@@ -77,8 +77,8 @@ class LocalApiServer(private val port: Int, private val context: Context) : Nano
             addCORSHeaders(response)
             response
         } catch (e: Exception) {
-            Log.e(TAG, "Error serving request $uri", e)
-            val response = newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "Erreur serveur: ${e.message}")
+            Log.e(TAG, "Serve Exception", e)
+            val response = newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "Crash: ${e.message}")
             addCORSHeaders(response)
             response
         }
@@ -87,80 +87,62 @@ class LocalApiServer(private val port: Int, private val context: Context) : Nano
     private fun handleAskRequest(session: IHTTPSession): Response {
         val params = if (session.method == Method.POST) {
             val files = HashMap<String, String>()
-            session.parseBody(files)
+            try { session.parseBody(files) } catch (e: Exception) {}
             session.parameters
         } else {
             session.parameters
         }
-
-        val question = params["q"]?.get(0) ?: params["question"]?.get(0)
-        return if (question != null) {
-            startAutomationJob(question)
-        } else {
-            newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "Erreur: Paramètre 'q' manquant")
-        }
+        val q = params["q"]?.get(0) ?: params["question"]?.get(0)
+        return if (q != null) startAutomationJob(q) 
+        else newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "Manquant: q")
     }
 
     private fun handleUploadRequest(session: IHTTPSession): Response {
         if (session.method != Method.POST) return newFixedLengthResponse(Response.Status.METHOD_NOT_ALLOWED, MIME_PLAINTEXT, "POST requis")
-
         val files = HashMap<String, String>()
         session.parseBody(files)
-        
-        val tempPath = files["file"]
-        // Dans NanoHTTPD multipart, le nom original est souvent stocké dans session.parameters["file"]
-        val originalName = session.parameters["file"]?.get(0) ?: "file_upload"
+        val temp = files["file"]
+        val name = session.parameters["file"]?.get(0) ?: "file.bin"
 
-        return if (tempPath != null) {
-            val fileToUpload = File(tempPath)
-            val result = fileUploader.uploadFile(fileToUpload, originalName)
-            if (result.success) {
-                val json = "{\"success\": true, \"filename\": \"${result.filename}\", \"url\": \"${result.url}\"}"
+        return if (temp != null) {
+            val res = fileUploader.uploadWithFallback(File(temp), name)
+            if (res.success) {
+                val json = "{\"success\":true, \"url\":\"${res.url}\"}"
                 newFixedLengthResponse(Response.Status.OK, "application/json", json)
             } else {
-                newFixedLengthResponse(Response.Status.INTERNAL_ERROR, "application/json", "{\"success\": false, \"error\": \"${result.error}\"}")
+                newFixedLengthResponse(Response.Status.INTERNAL_ERROR, "application/json", "{\"success\":false, \"error\":\"${res.errorLog}\"}")
             }
-        } else {
-            newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "Erreur: Aucun fichier reçu")
-        }
+        } else newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "No file")
     }
 
     private fun handleAskWithFileRequest(session: IHTTPSession): Response {
-        if (session.method != Method.POST) return newFixedLengthResponse(Response.Status.METHOD_NOT_ALLOWED, MIME_PLAINTEXT, "POST requis")
-
         val files = HashMap<String, String>()
         session.parseBody(files)
-        
-        val tempPath = files["file"]
-        val originalName = session.parameters["file"]?.get(0) ?: "file_upload"
-        val question = session.parameters["q"]?.get(0) ?: session.parameters["question"]?.get(0)
+        val temp = files["file"]
+        val name = session.parameters["file"]?.get(0) ?: "file.bin"
+        val q = session.parameters["q"]?.get(0) ?: session.parameters["question"]?.get(0)
 
-        return if (tempPath != null) {
-            val fileToUpload = File(tempPath)
-            val uploadResult = fileUploader.uploadFile(fileToUpload, originalName)
-            if (uploadResult.success) {
-                val formattedMessage = FileMessageBuilder.build(uploadResult.filename ?: originalName, uploadResult.url!!, question)
-                startAutomationJob(formattedMessage)
+        return if (temp != null) {
+            val res = fileUploader.uploadWithFallback(File(temp), name)
+            if (res.success) {
+                val msg = FileMessageBuilder.build(name, res.url!!, q)
+                startAutomationJob(msg)
             } else {
-                newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "Erreur upload: ${uploadResult.error}")
+                newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "Upload Failed:\n${res.errorLog}")
             }
-        } else {
-            newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "Erreur: Aucun fichier reçu")
-        }
+        } else newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "No file")
     }
 
     private fun startAutomationJob(content: String): Response {
         val jobId = java.util.UUID.randomUUID().toString()
         jobs[jobId] = JobStatus("pending")
-
         mainHandler.post {
             runBlocking {
                 try {
                     val result = coordinator.processQuestion(content)
                     jobs[jobId] = JobStatus("completed", result)
                 } catch (e: Exception) {
-                    Log.e(TAG, "Automation error", e)
-                    jobs[jobId] = JobStatus("error", "Erreur: ${e.message}")
+                    jobs[jobId] = JobStatus("error", "Error: ${e.message}")
                 }
             }
         }

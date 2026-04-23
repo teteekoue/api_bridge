@@ -8,161 +8,140 @@ object WebInterface {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IA Bridge - Dashboard</title>
+    <title>IA Bridge v5 - Debug Mode</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; margin: 0; display: flex; height: 100vh; }
-        .sidebar { width: 300px; background-color: #1a237e; color: white; padding: 25px; display: flex; flex-direction: column; }
-        .main { flex: 1; padding: 20px; display: flex; flex-direction: column; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .chat-box { flex: 1; background: white; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: #f8f9fa; }
-        .msg { padding: 12px 16px; border-radius: 20px; max-width: 80%; line-height: 1.5; font-size: 15px; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; display: flex; height: 100vh; }
+        .sidebar { width: 320px; background: #1a237e; color: white; padding: 20px; display: flex; flex-direction: column; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
+        .main { flex: 1; padding: 20px; display: flex; flex-direction: column; overflow: hidden; }
+        .chat-box { flex: 1; background: white; border-radius: 12px; display: flex; flex-direction: column; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #fdfdfd; }
+        .msg { padding: 10px 15px; border-radius: 15px; max-width: 85%; font-size: 14px; white-space: pre-wrap; }
         .msg.user { align-self: flex-end; background: #3949ab; color: white; }
-        .msg.bot { align-self: flex-start; background: #e0e0e0; color: #212121; white-space: pre-wrap; }
-        .input-area { padding: 20px; background: white; display: flex; gap: 10px; border-top: 1px solid #eee; }
-        input { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 8px; outline: none; font-size: 15px; }
-        button { padding: 12px 24px; background: #2e7d32; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
-        button:disabled { background: #bdbdbd; }
-        .api-info { background: #3949ab; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 13px; margin-top: 20px; color: #e8eaf6; }
-        .error-log { color: #ff5252; font-size: 12px; margin-top: 10px; font-family: monospace; }
-        .file-info { font-size: 12px; color: #555; margin-bottom: 5px; }
+        .msg.bot { align-self: flex-start; background: #eeeeee; color: #333; }
+        .input-area { padding: 15px; background: white; display: flex; gap: 10px; border-top: 1px solid #eee; align-items: center; }
+        input[type="text"] { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 8px; }
+        button { padding: 12px 20px; background: #2e7d32; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .debug-panel { background: #ffebee; border: 1px solid #ffcdd2; border-radius: 8px; padding: 15px; margin-top: 20px; color: #b71c1c; font-family: monospace; font-size: 11px; display: none; overflow-x: auto; }
+        .file-info { font-size: 12px; color: #fff; background: rgba(255,255,255,0.1); padding: 8px; border-radius: 5px; margin-bottom: 15px; }
     </style>
 </head>
 <body>
     <div class="sidebar">
-        <h2>IA Bridge</h2>
-        <p>Statut: <span style="color: #4caf50">● Connecté</span></p>
-        <div class="api-info">
-            URL API:<br>
-            <span id="url">http://$ipAddress:$port/ask</span>
+        <h2>IA Bridge v5</h2>
+        <div id="fileDisplay" class="file-info" style="display:none"></div>
+        <div class="api-info" style="font-size: 12px; opacity: 0.8; margin-bottom: 20px;">
+            Hôte: <span id="currentHost"></span><br>
+            Multi-Upload: Catbox / Tmp / File.io
         </div>
-        <button style="margin-top:10px; background: #5c6bc0" onclick="copyUrl()">Copier URL</button>
-        <div id="logs" class="error-log"></div>
+        <button onclick="document.getElementById('fileInput').click()" style="background: #455a64; width: 100%; margin-bottom: 10px;">📁 SÉLECTIONNER FICHIER</button>
+        <button onclick="copyUrl()" style="background: #3949ab; width: 100%;">🔗 COPIER URL API</button>
+        
+        <div id="debugPanel" class="debug-panel">
+            <strong>LOGS DE DÉBOGAGE :</strong><br>
+            <span id="debugContent"></span>
+        </div>
     </div>
+
     <div class="main">
         <div class="chat-box">
-            <div id="fileStatus" class="file-info" style="padding: 0 20px; margin-top: 10px;"></div>
             <div class="messages" id="msgs">
-                <div class="msg bot">Système prêt. Configurez la calibration sur le téléphone, puis posez votre question ici.</div>
+                <div class="msg bot">Système prêt (Mode Fallback Multi-Hébergeurs). Posez une question ou envoyez un fichier.</div>
             </div>
             <div class="input-area">
-                <input type="text" id="q" placeholder="Posez votre question..." onkeypress="if(event.key==='Enter') send()">
-                <input type="file" id="fileInput" style="display:none" onchange="updateFileLabel()">
-                <button id="btnFile" onclick="document.getElementById('fileInput').click()" style="background: #607d8b; padding: 12px 15px;">📁 <span id="fileLabel"></span></button>
-                <button id="btn" onclick="send()">ENVOYER</button>
+                <input type="file" id="fileInput" style="display:none" onchange="updateFileUI()">
+                <input type="text" id="q" placeholder="Tapez votre message ici..." onkeypress="if(event.key==='Enter') send()">
+                <button id="btnSend" onclick="send()">ENVOYER</button>
             </div>
         </div>
     </div>
 
     <script>
-        const BASE_URL = window.location.origin; // Utiliser l'origine actuelle pour éviter les erreurs NetworkError
-        
-        function copyUrl() {
-            const askUrl = BASE_URL + "/ask";
-            navigator.clipboard.writeText(askUrl);
-            alert("URL de base copiée !");
-        }
+        const API_BASE = window.location.origin;
+        document.getElementById('currentHost').innerText = API_BASE;
 
-        function updateFileLabel() {
-            const fileInput = document.getElementById('fileInput');
-            const file = fileInput.files[0];
-            const label = document.getElementById('fileLabel');
-            const status = document.getElementById('fileStatus');
-            if (file) {
-                label.innerText = file.name.substring(0, 5) + "...";
-                status.innerText = "Fichier prêt : " + file.name + " (" + (file.size/1024).toFixed(1) + " KB)";
+        function updateFileUI() {
+            const file = document.getElementById('fileInput').files[0];
+            const display = document.getElementById('fileDisplay');
+            if(file) {
+                display.innerText = "📎 Fichier: " + file.name + " (" + (file.size/1024).toFixed(1) + " KB)";
+                display.style.display = "block";
             } else {
-                label.innerText = "";
-                status.innerText = "";
+                display.style.display = "none";
             }
         }
 
         async function send() {
             const input = document.getElementById('q');
             const fileInput = document.getElementById('fileInput');
-            const btn = document.getElementById('btn');
-            const msgs = document.getElementById('msgs');
-            const logs = document.getElementById('logs');
+            const btn = document.getElementById('btnSend');
+            const debug = document.getElementById('debugPanel');
             const text = input.value.trim();
             const file = fileInput.files[0];
 
             if(!text && !file) return;
 
-            // Affichage du message dans le chat
-            let displayMsg = text;
-            if(file) displayMsg = "📁 [" + file.name + "] " + (text ? "\n\n" + text : "");
-            addMsg(displayMsg, 'user');
-
-            // Reset UI
-            input.value = '';
-            fileInput.value = '';
-            updateFileLabel();
+            addMsg((file ? "📁 [" + file.name + "]\n" : "") + text, 'user');
+            input.value = "";
             input.disabled = true;
             btn.disabled = true;
-            logs.innerText = "";
+            debug.style.display = "none";
 
             const loadingId = 'L-' + Date.now();
-            const loadingMsg = addMsg(file ? "Upload vers tmp.ninja et envoi..." : "Envoi de la question...", 'bot', loadingId);
+            const loadingMsg = addMsg(file ? "Initialisation du Multi-Upload..." : "Envoi...", 'bot', loadingId);
 
             try {
                 let jobId;
-                
-                if (file) {
-                    // MODE FICHIER + TEXTE (Multipart)
-                    const formData = new FormData();
-                    formData.append('file', file);
-                    if (text) formData.append('q', text);
-
-                    const response = await fetch(BASE_URL + "/ask-with-file", {
-                        method: 'POST',
-                        body: formData
-                    });
+                if(file) {
+                    const fd = new FormData();
+                    fd.append('file', file);
+                    if(text) fd.append('q', text);
                     
-                    if (!response.ok) throw new Error("Erreur serveur (" + response.status + ")");
-                    jobId = await response.text();
+                    const resp = await fetch(API_BASE + "/ask-with-file", { method: 'POST', body: fd });
+                    if(!resp.ok) {
+                        const err = await resp.text();
+                        showDebug(err);
+                        throw new Error("Échec critique (Voir logs)");
+                    }
+                    jobId = await resp.text();
                 } else {
-                    // MODE TEXTE SIMPLE (Comme avant)
-                    const response = await fetch(BASE_URL + "/ask", {
+                    const resp = await fetch(API_BASE + "/ask", {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                         body: 'q=' + encodeURIComponent(text)
                     });
-                    
-                    if (!response.ok) throw new Error("Erreur serveur (" + response.status + ")");
-                    jobId = await response.text();
+                    if(!resp.ok) throw new Error("Erreur HTTP " + resp.status);
+                    jobId = await resp.text();
                 }
 
-                loadingMsg.innerText = "Automatisation en cours (ID: " + jobId + ")...";
+                loadingMsg.innerText = "Automatisation lancée (ID: " + jobId + ")...";
 
-                // POLLING
-                let isFinished = false;
-                let attempts = 0;
-                while (!isFinished) {
-                    attempts++;
+                // Polling
+                let finished = false;
+                while(!finished) {
                     await new Promise(r => setTimeout(r, 3000));
-                    
-                    const res = await fetch(BASE_URL + "/result?id=" + jobId);
-                    const result = await res.text();
-                    
-                    if (result !== "STILL_WORKING") {
-                        loadingMsg.innerText = result;
-                        isFinished = true;
+                    const res = await fetch(API_BASE + "/result?id=" + jobId);
+                    const out = await res.text();
+                    if(out !== "STILL_WORKING") {
+                        loadingMsg.innerText = out;
+                        finished = true;
                     } else {
-                        loadingMsg.innerText = "L'IA travaille... (" + (attempts * 3) + "s)";
+                        loadingMsg.innerText = "L'IA travaille sur votre demande...";
                     }
-                    
-                    if (attempts > 400) throw new Error("Timeout");
                 }
-
-            } catch (e) {
-                loadingMsg.innerText = "ERREUR : " + e.message;
-                logs.innerText = "Détails: " + e.toString();
+            } catch(e) {
+                loadingMsg.innerText = "ERREUR: " + e.message;
             } finally {
                 input.disabled = false;
                 btn.disabled = false;
-                input.focus();
-                msgs.scrollTop = msgs.scrollHeight;
+                fileInput.value = "";
+                updateFileUI();
+                document.getElementById('msgs').scrollTop = document.getElementById('msgs').scrollHeight;
             }
+        }
+
+        function showDebug(content) {
+            document.getElementById('debugContent').innerText = content;
+            document.getElementById('debugPanel').style.display = "block";
         }
 
         function addMsg(text, type, id) {
@@ -170,10 +149,15 @@ object WebInterface {
             div.className = 'msg ' + type;
             if(id) div.id = id;
             div.innerText = text;
-            const container = document.getElementById('msgs');
-            container.appendChild(div);
-            container.scrollTop = container.scrollHeight;
+            const msgs = document.getElementById('msgs');
+            msgs.appendChild(div);
+            msgs.scrollTop = msgs.scrollHeight;
             return div;
+        }
+
+        function copyUrl() {
+            navigator.clipboard.writeText(API_BASE + "/ask");
+            alert("URL de l'API copiée !");
         }
     </script>
 </body>
