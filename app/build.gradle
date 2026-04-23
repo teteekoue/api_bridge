@@ -47,6 +47,9 @@ dependencies {
     // JSON (Gson)
     implementation 'com.google.code.gson:gson:2.10.1'
     
+    // OkHttp pour l'upload de fichiers
+    implementation 'com.squareup.okhttp3:okhttp:4.11.0'
+    
     // Coroutines
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
 

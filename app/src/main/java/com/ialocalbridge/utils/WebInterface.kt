@@ -45,6 +45,8 @@ object WebInterface {
             </div>
             <div class="input-area">
                 <input type="text" id="q" placeholder="Posez votre question..." onkeypress="if(event.key==='Enter') send()">
+                <input type="file" id="fileInput" style="display:none" onchange="updateFileLabel()">
+                <button id="btnFile" onclick="document.getElementById('fileInput').click()" style="background: #607d8b; padding: 12px 15px;">📁 <span id="fileLabel"></span></button>
                 <button id="btn" onclick="send()">ENVOYER</button>
             </div>
         </div>
@@ -53,41 +55,57 @@ object WebInterface {
     <script>
         const BASE_URL = "http://$ipAddress:$port";
         
-        function copyUrl() {
-            const askUrl = BASE_URL + "/ask";
-            navigator.clipboard.writeText(askUrl);
-            alert("URL de base copiée !");
+        function updateFileLabel() {
+            val file = document.getElementById('fileInput').files[0];
+            document.getElementById('fileLabel').innerText = file ? file.name.substring(0,10) + '...' : '';
         }
 
         async function send() {
             const input = document.getElementById('q');
+            const fileInput = document.getElementById('fileInput');
             const btn = document.getElementById('btn');
             const msgs = document.getElementById('msgs');
             const logs = document.getElementById('logs');
             const text = input.value.trim();
+            const file = fileInput.files[0];
 
-            if(!text) return;
+            if(!text && !file) return;
 
-            addMsg(text, 'user');
+            let displayMsg = text;
+            if(file) displayMsg = "[Fichier: " + file.name + "] " + text;
+            
+            addMsg(displayMsg, 'user');
             input.value = '';
             input.disabled = true;
             btn.disabled = true;
             logs.innerText = "";
 
             const loadingId = 'L-' + Date.now();
-            const loadingMsg = addMsg("Démarrage de l'automatisation...", 'bot', loadingId);
+            const loadingMsg = addMsg(file ? "Upload du fichier vers tmp.ninja..." : "Démarrage de l'automatisation...", 'bot', loadingId);
 
             try {
-                // ÉTAPE 1 : Créer le job
-                const askResp = await fetch(BASE_URL + "/ask", {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: 'q=' + encodeURIComponent(text)
-                });
+                let jobId;
+                if (file) {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('q', text);
 
-                if (!askResp.ok) throw new Error("Erreur lors de la création du job (" + askResp.status + ")");
-                
-                const jobId = await askResp.text();
+                    const askResp = await fetch(BASE_URL + "/ask-with-file", {
+                        method: 'POST',
+                        body: formData
+                    });
+                    if (!askResp.ok) throw new Error("Erreur upload/ask (" + askResp.status + ")");
+                    jobId = await askResp.text();
+                } else {
+                    const askResp = await fetch(BASE_URL + "/ask", {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: 'q=' + encodeURIComponent(text)
+                    });
+                    if (!askResp.ok) throw new Error("Erreur lors de la création du job (" + askResp.status + ")");
+                    jobId = await askResp.text();
+                }
+
                 loadingMsg.innerText = "Job démarré (ID: " + jobId + "). Attente de la réponse de l'IA...";
 
                 // ÉTAPE 2 : Polling (Vérification périodique)

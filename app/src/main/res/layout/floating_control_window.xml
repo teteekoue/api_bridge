@@ -30,6 +30,15 @@
             android:backgroundTint="#FF4444" />
 
         <Button
+            android:id="@+id/btn_toggle_file_mode"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="FILE: OFF"
+            android:textSize="10sp"
+            android:backgroundTint="#9E9E9E"
+            android:layout_marginStart="4dp" />
+
+        <Button
             android:id="@+id/btn_calibrate"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
