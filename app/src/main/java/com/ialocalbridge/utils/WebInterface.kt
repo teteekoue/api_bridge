@@ -55,8 +55,15 @@ object WebInterface {
     <script>
         const BASE_URL = "http://$ipAddress:$port";
         
+        function copyUrl() {
+            const askUrl = BASE_URL + "/ask";
+            navigator.clipboard.writeText(askUrl);
+            alert("URL de base copiée !");
+        }
+
         function updateFileLabel() {
-            val file = document.getElementById('fileInput').files[0];
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
             document.getElementById('fileLabel').innerText = file ? file.name.substring(0,10) + '...' : '';
         }
 
