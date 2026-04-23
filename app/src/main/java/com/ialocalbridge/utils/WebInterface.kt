@@ -1,142 +1,142 @@
 package com.ialocalbridge.utils
 
 object WebInterface {
-    fun getHtml(ipAddress: String, port: Int): String {
-        return """
+fun getHtml(ip: String, port: Int): String {
+return """
+
 <!DOCTYPE html>
-<html lang="fr">
+
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IA Bridge - Dashboard</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; margin: 0; display: flex; height: 100vh; }
-        .sidebar { width: 300px; background-color: #1a237e; color: white; padding: 25px; display: flex; flex-direction: column; }
-        .main { flex: 1; padding: 20px; display: flex; flex-direction: column; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .chat-box { flex: 1; background: white; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: #f8f9fa; }
-        .msg { padding: 12px 16px; border-radius: 20px; max-width: 80%; line-height: 1.5; font-size: 15px; }
-        .msg.user { align-self: flex-end; background: #3949ab; color: white; }
-        .msg.bot { align-self: flex-start; background: #e0e0e0; color: #212121; white-space: pre-wrap; }
-        .input-area { padding: 20px; background: white; display: flex; gap: 10px; border-top: 1px solid #eee; }
-        input { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 8px; outline: none; font-size: 15px; }
-        button { padding: 12px 24px; background: #2e7d32; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
-        button:disabled { background: #bdbdbd; }
-        .api-info { background: #3949ab; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 13px; margin-top: 20px; color: #e8eaf6; }
-        .error-log { color: #ff5252; font-size: 12px; margin-top: 10px; font-family: monospace; }
+        body { font-family: 'Segoe UI', system-ui; background: #f0f2f5; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .card { background: white; border-radius: 16px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        h2 { margin-top: 0; color: #1a237e; }
+        input, textarea, button { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; }
+        button { background: #1a237e; color: white; font-weight: bold; cursor: pointer; transition: 0.2s; border: none; }
+        button:hover { background: #0d1b5e; }
+        .status { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; margin-left: 10px; }
+        .status.ready { background: #4caf50; color: white; }
+        .status.waiting { background: #ff9800; color: white; }
+        .result { background: #f5f5f5; padding: 12px; border-radius: 8px; white-space: pre-wrap; font-family: monospace; }
+        .tab-bar { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab { padding: 10px 20px; background: #e0e0e0; border-radius: 8px; cursor: pointer; }
+        .tab.active { background: #1a237e; color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .file-input-wrapper { margin: 8px 0; }
+        .file-info { font-size: 12px; color: #666; margin-top: -5px; margin-bottom: 10px; }
     </style>
 </head>
 <body>
-    <div class="sidebar">
-        <h2>IA Bridge</h2>
-        <p>Statut: <span style="color: #4caf50">● Connecté</span></p>
-        <div class="api-info">
-            URL API:<br>
-            <span id="url">http://$ipAddress:$port/ask</span>
-        </div>
-        <button style="margin-top:10px; background: #5c6bc0" onclick="copyUrl()">Copier URL</button>
-        <div id="logs" class="error-log"></div>
-    </div>
-    <div class="main">
-        <div class="chat-box">
-            <div class="messages" id="msgs">
-                <div class="msg bot">Système prêt. Configurez la calibration sur le téléphone, puis posez votre question ici.</div>
-            </div>
-            <div class="input-area">
-                <input type="text" id="q" placeholder="Posez votre question..." onkeypress="if(event.key==='Enter') send()">
-                <button id="btn" onclick="send()">ENVOYER</button>
-            </div>
-        </div>
+<div class="container">
+    <div class="card">
+        <h1>🤖 IA Local Bridge</h1>
+        <p>API accessible sur: <strong>http://$ip:$port</strong></p>
+        <div id="serverStatus">Status: <span id="statusText">Vérification...</span></div>
     </div>
 
-    <script>
-        const BASE_URL = "http://$ipAddress:$port";
+</div>
+
+<script>
+    function switchTab(tab) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        if (tab === 'text') {
+            document.querySelector('.tab-bar .tab:first-child').classList.add('active');
+            document.getElementById('textTab').classList.add('active');
+        } else {
+            document.querySelector('.tab-bar .tab:last-child').classList.add('active');
+            document.getElementById('fileTab').classList.add('active');
+        }
+    }
+
+    async function sendText() {
+        const text = document.getElementById('textInput').value;
+        if (!text) return;
+        const resultDiv = document.getElementById('textResult');
+        resultDiv.innerText = 'Envoi en cours...';
+        try {
+            const response = await fetch('/ask?q=' + encodeURIComponent(text), { method: 'GET' });
+            const jobId = await response.text();
+            resultDiv.innerText = 'Job ID: ' + jobId + '\\nEn attente du résultat...';
+            await pollResult(jobId, resultDiv);
+        } catch(e) {
+            resultDiv.innerText = 'Erreur: ' + e.message;
+        }
+    }
+
+    async function sendFile() {
+        const fileInput = document.getElementById('fileInput');
+        const message = document.getElementById('fileMessageInput').value;
+        const file = fileInput.files[0];
+        if (!file) {
+            alert('Sélectionnez un fichier');
+            return;
+        }
+        if (file.size > 50 * 1024 * 1024) {
+            alert('Fichier trop volumineux (max 50 MB)');
+            return;
+        }
         
-        function copyUrl() {
-            const askUrl = BASE_URL + "/ask";
-            navigator.clipboard.writeText(askUrl);
-            alert("URL de base copiée !");
+        const resultDiv = document.getElementById('fileResult');
+        resultDiv.innerText = '📤 Upload et envoi en cours...';
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('message', message);
+        
+        try {
+            const response = await fetch('/upload-file', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            resultDiv.innerText = '✅ Fichier uploadé: ' + data.fileUrl + '\\n\\n🤖 Réponse IA:\\n' + data.jobId + '\\nAttente...';
+            await pollResult(data.jobId, resultDiv);
+        } catch(e) {
+            resultDiv.innerText = '❌ Erreur: ' + e.message;
         }
+    }
 
-        async function send() {
-            const input = document.getElementById('q');
-            const btn = document.getElementById('btn');
-            const msgs = document.getElementById('msgs');
-            const logs = document.getElementById('logs');
-            const text = input.value.trim();
-
-            if(!text) return;
-
-            addMsg(text, 'user');
-            input.value = '';
-            input.disabled = true;
-            btn.disabled = true;
-            logs.innerText = "";
-
-            const loadingId = 'L-' + Date.now();
-            const loadingMsg = addMsg("Démarrage de l'automatisation...", 'bot', loadingId);
-
+    async function pollResult(jobId, resultDiv) {
+        let attempts = 0;
+        while (attempts < 60) {
+            await new Promise(r => setTimeout(r, 2000));
             try {
-                // ÉTAPE 1 : Créer le job
-                const askResp = await fetch(BASE_URL + "/ask", {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: 'q=' + encodeURIComponent(text)
-                });
-
-                if (!askResp.ok) throw new Error("Erreur lors de la création du job (" + askResp.status + ")");
-                
-                const jobId = await askResp.text();
-                loadingMsg.innerText = "Job démarré (ID: " + jobId + "). Attente de la réponse de l'IA...";
-
-                // ÉTAPE 2 : Polling (Vérification périodique)
-                let isFinished = false;
-                let attempts = 0;
-                
-                while (!isFinished) {
-                    attempts++;
-                    await new Promise(r => setTimeout(r, 3000)); // Attente 3s
-                    
-                    const resultResp = await fetch(BASE_URL + "/result?id=" + jobId);
-                    if (!resultResp.ok) throw new Error("Erreur de polling (" + resultResp.status + ")");
-                    
-                    const result = await resultResp.text();
-                    
-                    if (result !== "STILL_WORKING") {
-                        loadingMsg.innerText = result;
-                        isFinished = true;
-                    } else {
-                        loadingMsg.innerText = "L'IA travaille toujours... (Tentative " + attempts + ")";
-                    }
-                    
-                    if (attempts > 1200) { // Timeout client de 1h
-                        throw new Error("Délai d'attente dépassé (1 heure)");
-                    }
+                const res = await fetch('/result?id=' + jobId);
+                const text = await res.text();
+                if (text !== 'STILL_WORKING') {
+                    resultDiv.innerText = text;
+                    return;
                 }
-            } catch (e) {
-                loadingMsg.innerText = "ERREUR : " + e.message;
-                logs.innerText = "Détails: " + e.toString();
-                console.error(e);
-            } finally {
-                input.disabled = false;
-                btn.disabled = false;
-                input.focus();
-                msgs.scrollTop = msgs.scrollHeight;
+                resultDiv.innerText = '🔄 Travail en cours... (' + (attempts+1) + '/60)';
+            } catch(e) {
+                resultDiv.innerText = 'Erreur polling: ' + e.message;
+                return;
             }
+            attempts++;
         }
+        resultDiv.innerText = '⏱️ Timeout après 2 minutes';
+    }
 
-        function addMsg(text, type, id) {
-            const div = document.createElement('div');
-            div.className = 'msg ' + type;
-            if(id) div.id = id;
-            div.innerText = text;
-            const container = document.getElementById('msgs');
-            container.appendChild(div);
-            container.scrollTop = container.scrollHeight;
-            return div;
-        }
-    </script>
+    async function checkStatus() {
+        try {
+            const res = await fetch('/status');
+            const status = await res.text();
+            const span = document.getElementById('statusText');
+            span.innerText = status;
+            span.className = status.includes('Ready') ? 'status ready' : 'status waiting';
+        } catch(e) {}
+    }
+    checkStatus();
+    setInterval(checkStatus, 5000);
+</script>
+
 </body>
 </html>
         """.trimIndent()
