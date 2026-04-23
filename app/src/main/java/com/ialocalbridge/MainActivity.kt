@@ -83,15 +83,35 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        binding.btnDelete_calibration.setOnClickListener {
+            val selected = binding.spinnerCalibration.selectedItem?.toString()
+            if (selected != null && selected != "Aucune calibration trouvée") {
+                android.app.AlertDialog.Builder(this)
+                    .setTitle("Supprimer le profil")
+                    .setMessage("Voulez-vous vraiment supprimer '$selected' ?")
+                    .setPositiveButton("Supprimer") { _, _ ->
+                        calibrationManager.deleteProvider(selected)
+                        refreshCalibrationList()
+                        Toast.makeText(this, "Profil supprimé", Toast.LENGTH_SHORT).show()
+                    }
+                    .setNegativeButton("Annuler", null)
+                    .show()
+            }
+        }
+
         binding.btnStartServer.setOnClickListener {
             val portStr = binding.edtPort.text.toString()
             val port = if (portStr.isNotEmpty()) portStr.toInt() else 8080
-            val selectedCalibration = binding.spinnerCalibration.selectedItem.toString()
+            val selectedCalibration = binding.spinnerCalibration.selectedItem?.toString() ?: "default_provider"
 
             if (selectedCalibration == "Aucune calibration trouvée") {
                 Toast.makeText(this, "Veuillez d'abord calibrer une application", Toast.LENGTH_LONG).show()
-                // On peut quand même démarrer pour permettre la première calibration
             }
+
+            // Sauvegarder le profil actuel pour AutomationCoordinator
+            getSharedPreferences("app_prefs", MODE_PRIVATE).edit()
+                .putString("current_provider", selectedCalibration)
+                .apply()
 
             // Démarrer le service avec les extras
             val intent = Intent(this, FloatingWindowService::class.java).apply {

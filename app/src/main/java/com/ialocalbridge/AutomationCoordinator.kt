@@ -13,110 +13,71 @@ class AutomationCoordinator(private val context: Context) {
 
     suspend fun stopGeneration(): String {
         val service = accessibilityService ?: return "Erreur: Service non activé"
-        val coords = calibrationManager.getCoordinates("default_provider")
+        // On récupère le dernier profil utilisé ou par défaut
+        val currentProvider = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+            .getString("current_provider", "default_provider") ?: "default_provider"
+        val coords = calibrationManager.getCoordinates(currentProvider)
         
-        // On clique simplement aux coordonnées du bouton d'envoi (qui est devenu STOP)
         service.clickAt(coords.sendButtonX, coords.sendButtonY)
         return "Commande STOP envoyée"
     }
 
     suspend fun processQuestion(question: String): String {
         val service = accessibilityService ?: return "Erreur: Service d'accessibilité non activé"
-        val coords = calibrationManager.getCoordinates("default_provider")
+        
+        val currentProvider = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+            .getString("current_provider", "default_provider") ?: "default_provider"
+        val coords = calibrationManager.getCoordinates(currentProvider)
+        
         val oldClipboard = ClipboardHelper.getFromClipboard(context)
 
-        // 1. Saisie et Envoi
+        Log.d(TAG, "Démarrage automatisation pour profil: $currentProvider")
+
+        // 1. Collage dans la barre de texte
+        ClipboardHelper.copyToClipboard(context, question)
         service.clickAt(coords.textFieldX, coords.textFieldY)
-        delay(600)
-        service.pasteText(question)
         delay(800)
+        service.pasteText()
+        delay(500)
+
+        // 2. Fermer le clavier (Bouton Back)
         service.closeKeyboard()
-        delay(1500)
+        delay(1000)
+
+        // 3. Appuyer sur Envoyer
         service.clickAt(coords.sendButtonX, coords.sendButtonY)
-        
-        // 2. Détection de fin (Stratégie : Clic Aveugle + Vérification Presse-papier)
-        delay(3000)
-        var isFinished = false
-        val timeoutMax = 10800000L // 3 heures
-        val startTime = System.currentTimeMillis()
-        val metrics = context.resources.displayMetrics
-        val centerX = metrics.widthPixels / 2f
-        val startY = metrics.heightPixels * 0.8f
-        val endY = metrics.heightPixels * 0.2f
+        delay(coords.delayAfterSendMs) // Attente initiale pour la réponse
 
-        Log.d(TAG, "Démarrage de la boucle de détection (Timeout: 3h, Cycle: 3s)")
-
-        while (!isFinished && (System.currentTimeMillis() - startTime) < timeoutMax) {
-            // A. On force le défilement vers le bas
-            service.performSwipe(centerX, startY, centerX, endY)
-            delay(1000) // Attente stabilisation après swipe
-            
-            // B. On tente le clic aux coordonnées du bouton Copier (même s'il semble absent)
-            Log.d(TAG, "Tentative de clic au bouton Copier aux coordonnées (${coords.copyButtonX}, ${coords.copyButtonY})")
-            service.clickAt(coords.copyButtonX, coords.copyButtonY)
-            
-            // C. On attend un peu que le système traite la copie
-            delay(1000)
-            
-            // D. VERIFICATION ULTIME : Est-ce que le presse-papier a changé ?
-            val currentClipboard = ClipboardHelper.getFromClipboard(context)
-            if (currentClipboard.isNotEmpty() && currentClipboard != oldClipboard) {
-                Log.d(TAG, "SUCCÈS : Le presse-papier a changé ! Génération terminée.")
-                isFinished = true
-            } else {
-                Log.d(TAG, "Rien dans le presse-papier ou contenu identique. Nouvelle tentative dans 1s...")
-                delay(1000) // Pour compléter le cycle de 3s environ
-            }
-        }
-        
-        // 3. SWIPE ULTIME DE SÉCURITÉ (Pour aligner le bouton Copier)
-        Log.d(TAG, "Performing Final Security Swipe...")
-        service.performSwipe(centerX, startY, centerX, endY)
-        delay(1500)
-
-        // 4. COPIE PERFECTIONNÉE (Coordonnées + Morphologie + Retry)
+        // 4. Boucle de détection (Swipe bas -> Attente -> Copie)
         var finalResult = ""
-        for (attempt in 0..2) {
-            Log.d(TAG, "Copy attempt #$attempt...")
+        var attempts = 0
+        val maxAttempts = 20
+
+        while (attempts < maxAttempts) {
+            attempts++
             
-            // A. Essayer le clic aux coordonnées calibrées
+            // On swipe vers le bas pour forcer l'affichage du dernier message et du bouton copier
+            service.swipeUp() 
+            delay(1000)
+
+            // On tente de cliquer sur le bouton copier
             service.clickAt(coords.copyButtonX, coords.copyButtonY)
             delay(1500)
-            finalResult = ClipboardHelper.getFromClipboard(context)
-            
-            // B. Si échec, essayer la recherche morphologique (par ID/Classe/Desc enregistrés)
-            if (finalResult == oldClipboard || finalResult.isEmpty()) {
-                Log.d(TAG, "Coordinate click failed. Searching by morphology...")
-                val copyNode = service.findNodeByMorphology(
-                    coords.copyButtonResourceId,
-                    coords.copyButtonClassName,
-                    coords.copyButtonDescription
-                )
-                if (copyNode != null) {
-                    service.clickNode(copyNode)
-                    delay(1500)
-                    finalResult = ClipboardHelper.getFromClipboard(context)
-                }
-            }
-            
-            // C. Si succès, on arrête là
-            if (finalResult.isNotEmpty() && finalResult != oldClipboard) {
-                Log.d(TAG, "Success copying response.")
+
+            val newClipboard = ClipboardHelper.getFromClipboard(context)
+            if (newClipboard.isNotEmpty() && newClipboard != oldClipboard && newClipboard != question) {
+                finalResult = newClipboard
                 break
             }
-            
-            // D. Si toujours échec, on refait un swipe pour débloquer l'interface
-            if (attempt < 2) {
-                Log.w(TAG, "Copy failed, retrying with extra swipe...")
-                service.performSwipe(centerX, startY, centerX, endY)
-                delay(1500)
-            }
+
+            Log.d(TAG, "Tentative $attempts : pas encore de nouvelle réponse...")
+            delay(2000) // Attente de 3s au total entre chaque cycle
         }
 
-        return if (finalResult.isEmpty() || finalResult == oldClipboard) {
-            "Erreur: La copie a échoué après plusieurs tentatives morphologiques."
-        } else {
+        return if (finalResult.isNotEmpty()) {
             finalResult
+        } else {
+            "Erreur: Délai d'attente dépassé ou échec de la copie."
         }
     }
 }
