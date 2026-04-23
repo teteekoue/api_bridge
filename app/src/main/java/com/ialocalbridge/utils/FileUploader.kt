@@ -45,27 +45,27 @@ class FileUploader {
         return try {
             client.newCall(request).execute().use { response ->
                 val responseBody = response.body?.string()
-                Log.d(TAG, "Response: $responseBody")
+                Log.d(TAG, "Upload Response Code: ${response.code}")
+                Log.d(TAG, "Upload Response Body: $responseBody")
 
                 if (response.isSuccessful && responseBody != null) {
-                    // tmp.ninja retourne souvent juste l'URL ou un JSON
-                    if (responseBody.startsWith("http")) {
+                    if (responseBody.trim().startsWith("http")) {
                         UploadResult(true, responseBody.trim(), originalFilename)
                     } else {
                         try {
                             val json = JSONObject(responseBody)
-                            val url = json.optString("url")
+                            val url = if (json.has("url")) json.getString("url") else ""
                             if (url.isNotEmpty()) {
                                 UploadResult(true, url, originalFilename)
                             } else {
-                                UploadResult(false, error = "URL non trouvée dans la réponse")
+                                UploadResult(false, error = "URL non trouvée dans JSON: $responseBody")
                             }
                         } catch (e: Exception) {
-                            UploadResult(false, error = "Format de réponse inconnu")
+                            UploadResult(false, error = "Réponse non reconnue: $responseBody")
                         }
                     }
                 } else {
-                    UploadResult(false, error = "Échec HTTP: ${response.code}")
+                    UploadResult(false, error = "Erreur HTTP ${response.code}: $responseBody")
                 }
             }
         } catch (e: IOException) {
