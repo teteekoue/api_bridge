@@ -2,6 +2,7 @@ package com.ialocalbridge.utils
 
 object WebInterface {
     fun getHtml(ipAddress: String, port: Int): String {
+        val dollar = "$"
         return """
 <!DOCTYPE html>
 <html lang="fr">
@@ -58,7 +59,6 @@ object WebInterface {
         /* Chat Section */
         #chat-section { padding: 0; }
         .chat-header { padding: 15px 25px; background: var(--white); border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 15px; }
-        .hamburger { font-size: 1.2rem; cursor: pointer; display: none; } /* Pour mobile plus tard */
         
         .messages { flex: 1; padding: 20px; display: flex; flex-direction: column; gap: 15px; overflow-y: auto; background: #fdfdfd; }
         .msg { max-width: 80%; padding: 12px 18px; border-radius: 18px; line-height: 1.5; font-size: 0.95rem; position: relative; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
@@ -91,8 +91,8 @@ object WebInterface {
         }
 
         .action-btn { 
-            width: 40dp; 
-            height: 40dp; 
+            width: 45px; 
+            height: 45px; 
             border-radius: 10px; 
             border: none; 
             cursor: pointer; 
@@ -103,7 +103,7 @@ object WebInterface {
             font-size: 1.1rem;
         }
         .btn-upload { background: #e8eaf6; color: var(--primary); }
-        .btn-send { background: var(--primary); color: white; width: 45px; height: 45px; }
+        .btn-send { background: var(--primary); color: white; }
         .btn-send:disabled { background: #ccc; cursor: not-allowed; }
 
         /* File Preview */
@@ -116,12 +116,12 @@ object WebInterface {
         .card h3 { margin-top: 0; color: var(--primary); }
         .info-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; }
         .info-label { font-weight: 600; color: #666; }
-        .copy-box { background: #f4f4f9; padding: 15px; border-radius: 8px; font-family: monospace; display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+        .copy-box { background: #f4f4f9; padding: 15px; border-radius: 8px; font-family: monospace; display: flex; justify-content: space-between; align-items: center; margin-top: 10px; overflow-x: auto; }
         
         .status-badge { padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; }
         .status-online { background: #e8f5e9; color: #2e7d32; }
 
-        #debug-area { margin-top: 20px; background: #1a1c2c; color: #ff5252; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 0.8rem; display: none; }
+        #debug-area { margin-top: 20px; background: #1a1c2c; color: #ff5252; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 0.8rem; display: none; overflow-x: auto; }
     </style>
 </head>
 <body>
@@ -188,39 +188,27 @@ object WebInterface {
                     <span class="status-badge status-online">ACTIF</span>
                 </div>
             </div>
-            <div class="card">
-                <h3>Options d'Automatisation</h3>
-                <p style="font-size: 0.9rem; color: #666;">Le système utilise la calibration "default_provider" enregistrée sur le téléphone.</p>
-                <div class="info-row">
-                    <span class="info-label">Multi-Upload Fallback</span>
-                    <span style="color: #4caf50;">Activé (Catbox, Tmp, File.io)</span>
-                </div>
-            </div>
         </section>
 
         <!-- Section API -->
         <section id="api-section" class="content-section">
             <div class="card">
                 <h3>Endpoints API</h3>
-                <p>Utilisez ces URLs pour intégrer le Bridge dans vos propres scripts.</p>
-                
                 <div style="margin-top:20px;">
-                    <label class="info-label">TEXTE SIMPLE (GET/POST)</label>
+                    <label class="info-label">TEXTE SIMPLE</label>
                     <div class="copy-box">
                         <span id="url-ask">http://$ipAddress:$port/ask?q=...</span>
-                        <i class="far fa-copy" style="cursor:pointer" onclick="copyToClipboard('url-ask')"></i>
+                        <i class="far fa-copy" onclick="copyToClipboard('url-ask')"></i>
                     </div>
                 </div>
-
                 <div style="margin-top:20px;">
-                    <label class="info-label">UPLOAD & ASK (POST MULTIPART)</label>
+                    <label class="info-label">UPLOAD & ASK</label>
                     <div class="copy-box">
                         <span id="url-file">http://$ipAddress:$port/ask-with-file</span>
-                        <i class="far fa-copy" style="cursor:pointer" onclick="copyToClipboard('url-file')"></i>
+                        <i class="far fa-copy" onclick="copyToClipboard('url-file')"></i>
                     </div>
                 </div>
             </div>
-
             <div id="debug-area"></div>
         </section>
     </div>
@@ -232,7 +220,6 @@ object WebInterface {
         function showSection(sectionId, element) {
             document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
             document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
-            
             document.getElementById(sectionId + '-section').classList.add('active');
             element.classList.add('active');
         }
@@ -252,8 +239,8 @@ object WebInterface {
                 chip.className = 'file-chip';
                 chip.innerHTML = `
                     <i class="fas fa-file-alt"></i>
-                    <span>${file.name.substring(0, 15)}${file.name.length > 15 ? '...' : ''}</span>
-                    <i class="fas fa-times" onclick="removeFile(${index})"></i>
+                    <span>${dollar}{file.name.substring(0, 15)}${dollar}{file.name.length > 15 ? '...' : ''}</span>
+                    <i class="fas fa-times" onclick="removeFile(${dollar}{index})"></i>
                 `;
                 container.appendChild(chip);
             });
@@ -275,10 +262,8 @@ object WebInterface {
             const input = document.getElementById('q');
             const btn = document.getElementById('btnSend');
             const text = input.value.trim();
-
             if(!text && selectedFiles.length === 0) return;
 
-            // UI Update
             let userMsg = text;
             if(selectedFiles.length > 0) {
                 userMsg = "📁 [" + selectedFiles.map(f => f.name).join(', ') + "]\n\n" + text;
@@ -296,13 +281,9 @@ object WebInterface {
             try {
                 let jobId;
                 if(selectedFiles.length > 0) {
-                    // Pour le multi-fichiers, on envoie le premier ou on les concatène (ici le premier pour la logique existante)
-                    // Note: Le serveur actuel prend 'file'. Pour plusieurs, il faudrait boucler ou adapter le serveur.
-                    // On reste sur la logique fonctionnelle : envoi du premier fichier si multi sélectionné.
                     const fd = new FormData();
                     fd.append('file', selectedFiles[0]); 
                     if(text) fd.append('q', text);
-                    
                     const resp = await fetch(API_BASE + "/ask-with-file", { method: 'POST', body: fd });
                     if(!resp.ok) throw new Error(await resp.text());
                     jobId = await resp.text();
@@ -319,7 +300,6 @@ object WebInterface {
                 selectedFiles = [];
                 renderFilePreviews();
 
-                // Polling
                 let finished = false;
                 while(!finished) {
                     await new Promise(r => setTimeout(r, 3000));
@@ -331,7 +311,7 @@ object WebInterface {
                     }
                 }
             } catch(e) {
-                loadingMsg.innerText = "Désolé, une erreur est survenue lors de l'envoi.";
+                loadingMsg.innerText = "Désolé, une erreur est survenue.";
                 const debug = document.getElementById('debug-area');
                 debug.innerText = "Logs: " + e.message;
                 debug.style.display = 'block';
