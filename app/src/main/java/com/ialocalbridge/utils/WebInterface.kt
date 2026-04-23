@@ -25,6 +25,7 @@ object WebInterface {
         button:disabled { background: #bdbdbd; }
         .api-info { background: #3949ab; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 13px; margin-top: 20px; color: #e8eaf6; }
         .error-log { color: #ff5252; font-size: 12px; margin-top: 10px; font-family: monospace; }
+        .file-info { font-size: 12px; color: #555; margin-bottom: 5px; }
     </style>
 </head>
 <body>
@@ -40,6 +41,7 @@ object WebInterface {
     </div>
     <div class="main">
         <div class="chat-box">
+            <div id="fileStatus" class="file-info" style="padding: 0 20px; margin-top: 10px;"></div>
             <div class="messages" id="msgs">
                 <div class="msg bot">Système prêt. Configurez la calibration sur le téléphone, puis posez votre question ici.</div>
             </div>
@@ -53,7 +55,7 @@ object WebInterface {
     </div>
 
     <script>
-        const BASE_URL = "http://$ipAddress:$port";
+        const BASE_URL = window.location.origin; // Utiliser l'origine actuelle pour éviter les erreurs NetworkError
         
         function copyUrl() {
             const askUrl = BASE_URL + "/ask";
@@ -64,7 +66,15 @@ object WebInterface {
         function updateFileLabel() {
             const fileInput = document.getElementById('fileInput');
             const file = fileInput.files[0];
-            document.getElementById('fileLabel').innerText = file ? file.name.substring(0,10) + '...' : '';
+            const label = document.getElementById('fileLabel');
+            const status = document.getElementById('fileStatus');
+            if (file) {
+                label.innerText = file.name.substring(0, 5) + "...";
+                status.innerText = "Fichier prêt : " + file.name + " (" + (file.size/1024).toFixed(1) + " KB)";
+            } else {
+                label.innerText = "";
+                status.innerText = "";
+            }
         }
 
         async function send() {
@@ -78,71 +88,75 @@ object WebInterface {
 
             if(!text && !file) return;
 
+            // Affichage du message dans le chat
             let displayMsg = text;
-            if(file) displayMsg = "[Fichier: " + file.name + "] " + text;
-            
+            if(file) displayMsg = "📁 [" + file.name + "] " + (text ? "\n\n" + text : "");
             addMsg(displayMsg, 'user');
+
+            // Reset UI
             input.value = '';
+            fileInput.value = '';
+            updateFileLabel();
             input.disabled = true;
             btn.disabled = true;
             logs.innerText = "";
 
             const loadingId = 'L-' + Date.now();
-            const loadingMsg = addMsg(file ? "Upload du fichier vers tmp.ninja..." : "Démarrage de l'automatisation...", 'bot', loadingId);
+            const loadingMsg = addMsg(file ? "Upload vers tmp.ninja et envoi..." : "Envoi de la question...", 'bot', loadingId);
 
             try {
                 let jobId;
+                
                 if (file) {
+                    // MODE FICHIER + TEXTE (Multipart)
                     const formData = new FormData();
                     formData.append('file', file);
-                    formData.append('q', text);
+                    if (text) formData.append('q', text);
 
-                    const askResp = await fetch(BASE_URL + "/ask-with-file", {
+                    const response = await fetch(BASE_URL + "/ask-with-file", {
                         method: 'POST',
                         body: formData
                     });
-                    if (!askResp.ok) throw new Error("Erreur upload/ask (" + askResp.status + ")");
-                    jobId = await askResp.text();
+                    
+                    if (!response.ok) throw new Error("Erreur serveur (" + response.status + ")");
+                    jobId = await response.text();
                 } else {
-                    const askResp = await fetch(BASE_URL + "/ask", {
+                    // MODE TEXTE SIMPLE (Comme avant)
+                    const response = await fetch(BASE_URL + "/ask", {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                         body: 'q=' + encodeURIComponent(text)
                     });
-                    if (!askResp.ok) throw new Error("Erreur lors de la création du job (" + askResp.status + ")");
-                    jobId = await askResp.text();
+                    
+                    if (!response.ok) throw new Error("Erreur serveur (" + response.status + ")");
+                    jobId = await response.text();
                 }
 
-                loadingMsg.innerText = "Job démarré (ID: " + jobId + "). Attente de la réponse de l'IA...";
+                loadingMsg.innerText = "Automatisation en cours (ID: " + jobId + ")...";
 
-                // ÉTAPE 2 : Polling (Vérification périodique)
+                // POLLING
                 let isFinished = false;
                 let attempts = 0;
-                
                 while (!isFinished) {
                     attempts++;
-                    await new Promise(r => setTimeout(r, 3000)); // Attente 3s
+                    await new Promise(r => setTimeout(r, 3000));
                     
-                    const resultResp = await fetch(BASE_URL + "/result?id=" + jobId);
-                    if (!resultResp.ok) throw new Error("Erreur de polling (" + resultResp.status + ")");
-                    
-                    const result = await resultResp.text();
+                    const res = await fetch(BASE_URL + "/result?id=" + jobId);
+                    const result = await res.text();
                     
                     if (result !== "STILL_WORKING") {
                         loadingMsg.innerText = result;
                         isFinished = true;
                     } else {
-                        loadingMsg.innerText = "L'IA travaille toujours... (Tentative " + attempts + ")";
+                        loadingMsg.innerText = "L'IA travaille... (" + (attempts * 3) + "s)";
                     }
                     
-                    if (attempts > 1200) { // Timeout client de 1h
-                        throw new Error("Délai d'attente dépassé (1 heure)");
-                    }
+                    if (attempts > 400) throw new Error("Timeout");
                 }
+
             } catch (e) {
                 loadingMsg.innerText = "ERREUR : " + e.message;
                 logs.innerText = "Détails: " + e.toString();
-                console.error(e);
             } finally {
                 input.disabled = false;
                 btn.disabled = false;

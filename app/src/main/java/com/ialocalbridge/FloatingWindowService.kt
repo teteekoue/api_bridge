@@ -89,7 +89,6 @@ class FloatingWindowService : Service() {
         val btnClose = floatingView.findViewById<ImageView>(R.id.btn_close)
         val btnCalibrate = floatingView.findViewById<Button>(R.id.btn_calibrate)
         val btnStartApi = floatingView.findViewById<Button>(R.id.btn_start_api)
-        val btnToggleFile = floatingView.findViewById<Button>(R.id.btn_toggle_file_mode)
 
         btnDrag.setOnTouchListener { _, event ->
             when (event.action) {
@@ -112,25 +111,6 @@ class FloatingWindowService : Service() {
 
         btnClose.setOnClickListener {
             stopSelf()
-        }
-
-        btnToggleFile.setOnClickListener {
-            apiServer?.let { server ->
-                server.isFileModeEnabled = !server.isFileModeEnabled
-                if (server.isFileModeEnabled) {
-                    btnToggleFile.text = "FILE: ON"
-                    btnToggleFile.setBackgroundColor(Color.BLUE)
-                    Toast.makeText(this, "Mode fichiers activé - Utilisez /upload", Toast.LENGTH_SHORT).show()
-                    updateNotification("Mode Fichier ACTIVÉ - Prêt pour /upload")
-                } else {
-                    btnToggleFile.text = "FILE: OFF"
-                    btnToggleFile.setBackgroundColor(Color.parseColor("#9E9E9E"))
-                    Toast.makeText(this, "Mode fichiers désactivé", Toast.LENGTH_SHORT).show()
-                    updateNotification("Le serveur API est actif")
-                }
-            } ?: run {
-                Toast.makeText(this, "Lancez l'API d'abord", Toast.LENGTH_SHORT).show()
-            }
         }
 
         btnCalibrate.setOnClickListener {

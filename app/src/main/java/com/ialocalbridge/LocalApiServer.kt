@@ -21,7 +21,6 @@ class LocalApiServer(private val port: Int, private val context: Context) : Nano
     private val mainHandler = Handler(Looper.getMainLooper())
     private val TAG = "LocalApiServer"
     
-    var isFileModeEnabled = false
     private val jobs = HashMap<String, JobStatus>()
 
     data class JobStatus(
@@ -71,8 +70,7 @@ class LocalApiServer(private val port: Int, private val context: Context) : Nano
                 "/status" -> {
                     val isServiceActive = ClickAccessibilityService.instance != null
                     val status = if (isServiceActive) "Ready" else "Accessibility Service Disabled"
-                    val fileModeStatus = if (isFileModeEnabled) " (File Mode ON)" else ""
-                    newFixedLengthResponse(status + fileModeStatus)
+                    newFixedLengthResponse(status)
                 }
                 else -> newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found")
             }
