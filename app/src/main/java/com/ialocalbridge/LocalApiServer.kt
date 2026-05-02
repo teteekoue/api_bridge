@@ -14,7 +14,7 @@ import fi.iki.elonen.NanoHTTPD.IHTTPSession
 import kotlinx.coroutines.runBlocking
 import java.io.File
 
-class LocalApiServer(private val port: Int, private val context: Context) : NanoHTTPD(port) {
+class LocalApiServer(private val port: Int, private val context: Context) : NanoHTTPD(null, port) {
 
     private val coordinator = AutomationCoordinator(context)
     private val fileUploader = FileUploader()

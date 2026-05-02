@@ -155,6 +155,7 @@ class FloatingWindowService : Service() {
             if (!isServerRunning) {
                 startServer()
             } else {
+                AutomationCoordinator.stopCurrentJob() // Arrêter l'automatisation en cours
                 apiServer?.stop()
                 isServerRunning = false
                 btnStartApi.text = "API: OFF"

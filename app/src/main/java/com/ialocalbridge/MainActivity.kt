@@ -125,8 +125,14 @@ class MainActivity : AppCompatActivity() {
                 startService(intent)
             }
             
-            Toast.makeText(this, "NEMAPI Bridge activé sur le port $port", Toast.LENGTH_SHORT).show()
-            moveTaskToBack(true) // L'appli reste active en fond mais se "ferme" visuellement
+            Toast.makeText(this, "NEMAPI Bridge activé sur le port $port", Toast.makeText.LENGTH_SHORT).show()
+            
+            // Afficher l'IP locale
+            val ip = com.ialocalbridge.utils.NetworkHelper.getIPAddress()
+            binding.txtServerAddress.visibility = View.VISIBLE
+            binding.txtServerAddress.text = "Serveur : http://$ip:$port"
+
+            // moveTaskToBack(true) // Optionnel : On peut laisser l'utilisateur voir l'IP avant de réduire
         }
     }
 
