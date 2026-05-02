@@ -1,4 +1,4 @@
-# IA-Local-Bridge 📱🤖
+# IA-Local-Bridge 📱🤖 version pure
 
 Transformez votre smartphone Android en une passerelle API physique pour n'importe quelle application d'IA mobile (DeepSeek, ChatGPT, Claude, Gemini, etc.).
 
