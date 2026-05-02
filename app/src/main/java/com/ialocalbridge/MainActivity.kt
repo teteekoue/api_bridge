@@ -125,7 +125,7 @@ class MainActivity : AppCompatActivity() {
                 startService(intent)
             }
             
-            Toast.makeText(this, "NEMAPI Bridge activé sur le port $port", Toast.makeText.LENGTH_SHORT).show()
+            Toast.makeText(this, "NEMAPI Bridge activé sur le port $port", Toast.LENGTH_SHORT).show()
             
             // Afficher l'IP locale
             val ip = com.ialocalbridge.utils.NetworkHelper.getIPAddress()
