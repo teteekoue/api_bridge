@@ -2,126 +2,295 @@ package com.ialocalbridge.utils
 
 object WebInterface {
     fun getHtml(ipAddress: String, port: Int): String {
-        val dollar = "$"
-        return """
-<!DOCTYPE html>
+        return """<!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEMAPI Pro v6.3</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>NEMAPI Bridge - Admin Panel</title>
     <style>
-        :root { --primary: #4361ee; --primary-dark: #3f37c9; --secondary: #4cc9f0; --bg: #f8f9fa; --text: #2b2d42; --white: #ffffff; --sidebar-width: 280px; }
-        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; height: 100vh; overflow: hidden; }
-        .sidebar { width: var(--sidebar-width); background: #1a1c2c; color: white; display: flex; flex-direction: column; z-index: 1000; }
-        .sidebar-header { padding: 30px 20px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        .menu-items { flex: 1; padding: 20px 0; }
-        .menu-item { padding: 15px 25px; display: flex; align-items: center; gap: 15px; cursor: pointer; color: rgba(255,255,255,0.7); }
-        .menu-item.active { background: rgba(255,255,255,0.1); color: white; }
-        .main-container { flex: 1; display: flex; flex-direction: column; }
-        .content-section { display: none; flex: 1; padding: 30px; overflow-y: auto; }
-        .content-section.active { display: flex; flex-direction: column; }
-        .messages { flex: 1; padding: 20px; display: flex; flex-direction: column; gap: 15px; overflow-y: auto; background: #fdfdfd; }
-        .msg { max-width: 85%; padding: 12px 18px; border-radius: 18px; line-height: 1.5; font-size: 0.95rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .msg.user { align-self: flex-end; background: var(--primary); color: white; border-bottom-right-radius: 4px; }
-        .msg.bot { align-self: flex-start; background: #ececf1; color: var(--text); border-bottom-left-radius: 4px; white-space: pre-wrap; }
-        .input-container { padding: 20px; background: var(--white); border-top: 1px solid #eee; }
-        .input-wrapper { max-width: 1000px; margin: 0 auto; background: #f4f4f9; border-radius: 15px; padding: 8px 15px; display: flex; align-items: center; gap: 12px; }
-        textarea { flex: 1; background: transparent; border: none; outline: none; padding: 10px 0; font-family: inherit; font-size: 1rem; resize: none; max-height: 150px; }
-        .action-btn { width: 42px; height: 42px; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        .btn-send { background: var(--primary); color: white; }
-        .btn-stop { background: #D32F2F; color: white; display: none; }
-        .file-previews { display: flex; flex-wrap: wrap; gap: 8px; max-width: 1000px; margin: 0 auto 10px auto; }
-        .file-chip { background: #e8eaf6; border: 1px solid var(--primary); color: var(--primary); padding: 4px 12px; border-radius: 15px; font-size: 0.8rem; display: flex; align-items: center; gap: 8px; }
-        .debug-panel { margin-top: 20px; background: #ffebee; color: #b71c1c; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 0.8rem; display: none; border: 1px solid #ffcdd2; }
+        :root {
+            --bg: #0f1117;
+            --card: #1a1d27;
+            --border: #2a2d3a;
+            --text: #e1e4ed;
+            --muted: #8b8fa3;
+            --primary: #6366f1;
+            --primary-hover: #818cf8;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --sidebar-w: 220px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; }
+        .sidebar { width: var(--sidebar-w); background: var(--card); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100; }
+        .sidebar-header { padding: 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); }
+        .sidebar-header .logo { width: 32px; height: 32px; background: var(--primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; }
+        .sidebar-header .title { font-weight: 600; font-size: 16px; }
+        .nav { flex: 1; padding: 12px 8px; display: flex; flex-direction: column; gap: 4px; }
+        .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; cursor: pointer; color: var(--muted); font-size: 14px; transition: all 0.15s; border: none; background: none; width: 100%; text-align: left; }
+        .nav-item:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+        .nav-item.active { background: rgba(99,102,241,0.12); color: var(--primary); }
+        .nav-item .icon { width: 20px; text-align: center; font-size: 16px; }
+        .sidebar-footer { padding: 12px; border-top: 1px solid var(--border); }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+        .status-dot.online { background: var(--success); }
+        .status-dot.offline { background: var(--danger); }
+        .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; }
+        .topbar { padding: 16px 24px; border-bottom: 1px solid var(--border); background: var(--bg); display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; }
+        .topbar h2 { font-size: 18px; font-weight: 600; }
+        .content { flex: 1; padding: 24px; overflow-y: auto; }
+        .page { display: none; }
+        .page.active { display: block; }
+        .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+        .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+        .card-title { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .card-value { font-size: 28px; font-weight: 700; }
+        .card-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+        .card-icon.blue { background: rgba(99,102,241,0.15); color: var(--primary); }
+        .card-icon.green { background: rgba(34,197,94,0.15); color: var(--success); }
+        .card-icon.amber { background: rgba(245,158,11,0.15); color: var(--warning); }
+        .card-icon.red { background: rgba(239,68,68,0.15); color: var(--danger); }
+        .logs-container { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; max-height: 400px; overflow-y: auto; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.7; }
+        .log-entry { padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
+        .log-time { color: var(--muted); margin-right: 10px; }
+        .log-info { color: var(--primary); }
+        .log-success { color: var(--success); }
+        .log-error { color: var(--danger); }
+        .btn { padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+        .btn-outline:hover { background: rgba(255,255,255,0.04); }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-sm { padding: 4px 10px; font-size: 12px; }
+        .input-group { display: flex; gap: 8px; margin-bottom: 16px; }
+        .input { flex: 1; padding: 10px 14px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 14px; outline: none; }
+        .input:focus { border-color: var(--primary); }
+        .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+        .badge-success { background: rgba(34,197,94,0.15); color: var(--success); }
+        .badge-warning { background: rgba(245,158,11,0.15); color: var(--warning); }
+        .badge-danger { background: rgba(239,68,68,0.15); color: var(--danger); }
+        .chat-area { background: var(--card); border: 1px solid var(--border); border-radius: 12px; display: flex; flex-direction: column; height: calc(100vh - 200px); }
+        .chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+        .chat-msg { max-width: 80%; padding: 10px 16px; border-radius: 12px; font-size: 14px; line-height: 1.6; }
+        .chat-msg.user { align-self: flex-end; background: var(--primary); color: white; border-bottom-right-radius: 4px; }
+        .chat-msg.assistant { align-self: flex-start; background: #252836; color: var(--text); border-bottom-left-radius: 4px; }
+        .chat-input-area { padding: 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border); font-size: 14px; }
+        th { color: var(--muted); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .main { margin-left: 0; }
+            .cards { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
-    <div class="sidebar">
-        <div class="sidebar-header"><h2>NEMAPI PRO</h2></div>
-        <div class="menu-items">
-            <div id="m-chat" class="menu-item active" onclick="showSection('chat')"><i class="fas fa-comment-dots"></i> Mode Chat</div>
-            <div id="m-config" class="menu-item" onclick="showSection('config')"><i class="fas fa-sliders-h"></i> Configuration</div>
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">N</div>
+            <span class="title">NEMAPI Bridge</span>
         </div>
-        <div style="padding: 20px; font-size: 0.7rem; opacity: 0.4;">v6.3 Build (6-Host Fallback)</div>
-    </div>
-    <div class="main-container">
-        <section id="chat-section" class="content-section active">
-            <div class="messages" id="msgs"><div class="msg bot">NEMAPI Pro prêt. 6 hébergeurs actifs pour vos fichiers.</div></div>
-            <div id="debug-panel" class="debug-panel"></div>
-            <div class="input-container">
-                <div id="filePreviews" class="file-previews"></div>
-                <div class="input-wrapper">
-                    <button class="action-btn" onclick="document.getElementById('fileInput').click()"><i class="fas fa-plus"></i></button>
-                    <input type="file" id="fileInput" multiple style="display:none" onchange="handleFileSelect()">
-                    <textarea id="q" placeholder="Posez votre question..." rows="1" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
-                    <button id="btnStop" class="action-btn btn-stop" onclick="stopAI()"><i class="fas fa-stop"></i></button>
-                    <button id="btnSend" class="action-btn btn-send" onclick="send()"><i class="fas fa-arrow-up"></i></button>
+        <nav class="nav">
+            <button class="nav-item active" data-page="dashboard"><span class="icon">📊</span> Dashboard</button>
+            <button class="nav-item" data-page="chat"><span class="icon">💬</span> Chat</button>
+            <button class="nav-item" data-page="models"><span class="icon">🧩</span> Models</button>
+            <button class="nav-item" data-page="config"><span class="icon">⚙️</span> Config</button>
+            <button class="nav-item" data-page="logs"><span class="icon">📜</span> Logs</button>
+        </nav>
+        <div class="sidebar-footer">
+            <div style="font-size:12px;color:var(--muted);">
+                <span class="status-dot" id="statusDot"></span><span id="statusLabel">Checking...</span>
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px;">${ipAddress}:${port}</div>
+        </div>
+    </aside>
+    <div class="main">
+        <div class="topbar"><h2 id="pageTitle">Dashboard</h2><span id="clock" style="color:var(--muted);font-size:14px;"></span></div>
+        <div class="content">
+            <div id="page-dashboard" class="page active">
+                <div class="cards">
+                    <div class="card"><div class="card-header"><span class="card-title">Uptime</span><span class="card-icon blue">⏱</span></div><div class="card-value" id="uptime">--</div></div>
+                    <div class="card"><div class="card-header"><span class="card-title">Requests</span><span class="card-icon green">📨</span></div><div class="card-value" id="reqCount">0</div></div>
+                    <div class="card"><div class="card-header"><span class="card-title">Success Rate</span><span class="card-icon amber">📈</span></div><div class="card-value" id="successRate">--</div></div>
+                    <div class="card"><div class="card-header"><span class="card-title">Active Jobs</span><span class="card-icon red">⚡</span></div><div class="card-value" id="activeJobs">0</div></div>
+                </div>
+                <div class="card" style="margin-top:16px;">
+                    <div class="card-header"><span class="card-title">Recent Activity</span></div>
+                    <div id="recentActivity" style="color:var(--muted);font-size:14px;">No recent activity</div>
                 </div>
             </div>
-        </section>
-        <section id="config-section" class="content-section">
-            <div style="background:white; padding:25px; border-radius:12px; box-shadow:0 4px 6px rgba(0,0,0,0.05)">
-                <h3>Réseau NEMAPI</h3>
-                <p>IP: $ipAddress</p>
-                <p>Port: $port</p>
-                <p>Hébergeurs: Catbox, Tmp.ninja, 0x0.st, Pomf.cat, File.io, GoFile</p>
+            <div id="page-chat" class="page">
+                <div class="chat-area">
+                    <div class="chat-messages" id="chatMessages"><div class="chat-msg assistant">Hello! I am NEMAPI Bridge, your local AI API gateway. Type a message to begin.</div></div>
+                    <div class="chat-input-area">
+                        <input type="text" class="input" id="chatInput" placeholder="Type your message..." onkeydown="if(event.key==='Enter')sendChat()">
+                        <button class="btn btn-primary" onclick="sendChat()">Send</button>
+                    </div>
+                </div>
             </div>
-        </section>
+            <div id="page-models" class="page">
+                <div class="card">
+                    <div class="card-header"><span class="card-title">Available Models</span><button class="btn btn-outline btn-sm" onclick="loadModels()">Refresh</button></div>
+                    <table><thead><tr><th>ID</th><th>Object</th><th>Owner</th></tr></thead><tbody id="modelsTable"><tr><td colspan="3" style="color:var(--muted);">Loading...</td></tr></tbody></table>
+                </div>
+            </div>
+            <div id="page-config" class="page">
+                <div class="card" style="margin-bottom:16px;">
+                    <div class="card-header"><span class="card-title">Server Configuration</span></div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                        <div><span style="color:var(--muted);">IP Address</span><br><strong>${ipAddress}</strong></div>
+                        <div><span style="color:var(--muted);">Port</span><br><strong>${port}</strong></div>
+                        <div><span style="color:var(--muted);">Endpoint OpenAI</span><br><code style="color:var(--primary);">/v1/chat/completions</code></div>
+                        <div><span style="color:var(--muted);">Endpoint Models</span><br><code style="color:var(--primary);">/v1/models</code></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header"><span class="card-title">Calibration</span><span class="badge" id="calibBadge">Unknown</span></div>
+                    <p style="color:var(--muted);font-size:14px;">Calibration is managed on the Android device via the floating button overlay.</p>
+                </div>
+            </div>
+            <div id="page-logs" class="page">
+                <div class="card" style="margin-bottom:16px;">
+                    <div class="card-header"><span class="card-title">System Logs</span><button class="btn btn-outline btn-sm" onclick="clearLogs()">Clear</button></div>
+                    <div class="logs-container" id="logsContainer"><div class="log-entry"><span class="log-time">--:--:--</span><span class="log-info">System started</span></div></div>
+                </div>
+            </div>
+        </div>
     </div>
     <script>
         const BASE = window.location.origin;
-        let filesQueue = [];
-        function showSection(id) { document.querySelectorAll('.content-section, .menu-item').forEach(e => e.classList.remove('active')); document.getElementById(id + '-section').classList.add('active'); document.getElementById('m-' + id).classList.add('active'); }
-        function handleFileSelect() { const chosen = Array.from(document.getElementById('fileInput').files); filesQueue = [...filesQueue, ...chosen]; renderChips(); document.getElementById('fileInput').value = ''; }
-        function renderChips() { const container = document.getElementById('filePreviews'); container.innerHTML = ''; filesQueue.forEach((f, i) => { const chip = document.createElement('div'); chip.className = 'file-chip'; chip.innerHTML = `<i class="fas fa-file"></i> ${dollar}{f.name.substring(0,10)} <i class="fas fa-times-circle" style="cursor:pointer" onclick="removeFile(${dollar}{i})"></i>`; container.appendChild(chip); }); }
-        function removeFile(i) { filesQueue.splice(i, 1); renderChips(); }
-        async function send() {
-            const qInput = document.getElementById('q'); const text = qInput.value.trim();
-            const btnSend = document.getElementById('btnSend'); const btnStop = document.getElementById('btnStop');
-            const debug = document.getElementById('debug-panel');
-            if (!text && filesQueue.length === 0) return;
-            addMsg((filesQueue.length > 0 ? "📁 [" + filesQueue.map(f => f.name).join(', ') + "]\n\n" : "") + text, 'user');
-            qInput.value = ''; qInput.disabled = true; btnSend.style.display = 'none'; btnStop.style.display = 'flex'; debug.style.display = 'none';
-            const loadingMsg = addMsg("Initialisation...", 'bot');
-            try {
-                let finalPrompt = text;
-                if (filesQueue.length > 0) {
-                    const links = [];
-                    for (let i = 0; i < filesQueue.length; i++) {
-                        const f = filesQueue[i];
-                        loadingMsg.innerText = "Upload " + (i + 1) + "/" + filesQueue.length + " (" + f.name + ")...";
-                        const fd = new FormData(); fd.append('file', f);
-                        const upResp = await fetch(BASE + "/upload?file=" + encodeURIComponent(f.name), { method: 'POST', body: fd });
-                        if (!upResp.ok) { const err = await upResp.text(); throw new Error("Upload " + f.name + " échoué:\n" + err); }
-                        const data = await upResp.json();
-                        links.push("- " + f.name + " : " + data.url);
-                    }
-                    finalPrompt = "[FICHIERS JOINTS]\n" + links.join('\n') + "\n\nQuestion: " + text;
-                    filesQueue = []; renderChips();
-                }
-                loadingMsg.innerText = "L'IA réfléchit...";
-                const askResp = await fetch(BASE + "/ask", { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'q=' + encodeURIComponent(finalPrompt) });
-                const jobId = await askResp.text();
-                let done = false;
-                while (!done) {
-                    await new Promise(r => setTimeout(r, 3000));
-                    const res = await fetch(BASE + "/result?id=" + jobId);
-                    const out = await res.text();
-                    if (out !== "STILL_WORKING") { loadingMsg.innerText = out; done = true; }
-                }
-            } catch (e) {
-                loadingMsg.innerText = "Échec du processus.";
-                debug.innerText = "LOGS DE DÉBOGAGE :\n" + e.message;
-                debug.style.display = 'block';
-            } finally { qInput.disabled = false; btnSend.style.display = 'flex'; btnStop.style.display = 'none'; qInput.focus(); }
+        let reqCount = 0;
+        let startTime = Date.now();
+        const logs = [];
+
+        function $(id) { return document.getElementById(id); }
+
+        document.querySelectorAll('.nav-item').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const page = btn.dataset.page;
+                document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+                $('page-' + page).classList.add('active');
+                $('pageTitle').textContent = btn.textContent.trim();
+                if (page === 'models') loadModels();
+                if (page === 'dashboard') refreshDashboard();
+            });
+        });
+
+        function addLog(msg, type) {
+            const time = new Date().toLocaleTimeString();
+            logs.unshift({ time, msg, type });
+            if (logs.length > 50) logs.pop();
+            renderLogs();
         }
-        async function stopAI() { await fetch(BASE + "/stop"); addMsg("Arrêt envoyé.", 'bot'); }
-        function addMsg(text, type) { const div = document.createElement('div'); div.className = 'msg ' + type; div.innerText = text; document.getElementById('msgs').appendChild(div); document.getElementById('msgs').scrollTop = document.getElementById('msgs').scrollHeight; return div; }
+
+        function renderLogs() {
+            const container = $('logsContainer');
+            container.innerHTML = logs.map(l => '<div class="log-entry"><span class="log-time">' + l.time + '</span><span class="log-' + l.type + '">' + l.msg + '</span></div>').join('');
+        }
+
+        function clearLogs() { logs.length = 0; renderLogs(); addLog('Logs cleared', 'info'); }
+
+        async function checkStatus() {
+            try {
+                const r = await fetch(BASE + '/status');
+                const status = await r.text();
+                const dot = $('statusDot');
+                const label = $('statusLabel');
+                if (status.includes('Ready')) {
+                    dot.className = 'status-dot online';
+                    label.textContent = 'Online';
+                    $('calibBadge').textContent = 'Ready';
+                    $('calibBadge').className = 'badge badge-success';
+                } else {
+                    dot.className = 'status-dot offline';
+                    label.textContent = 'Service Disabled';
+                    $('calibBadge').textContent = 'Not Calibrated';
+                    $('calibBadge').className = 'badge badge-danger';
+                }
+            } catch(e) {}
+        }
+
+        async function loadModels() {
+            try {
+                const r = await fetch(BASE + '/v1/models');
+                const data = await r.json();
+                const tbody = $('modelsTable');
+                tbody.innerHTML = data.data.map(m => '<tr><td><strong>' + m.id + '</strong></td><td>' + m.object + '</td><td>' + m.owned_by + '</td></tr>').join('');
+            } catch(e) {
+                $('modelsTable').innerHTML = '<tr><td colspan="3" style="color:var(--danger);">Failed to load models</td></tr>';
+            }
+        }
+
+        function refreshDashboard() {
+            const uptimeSec = Math.floor((Date.now() - startTime) / 1000);
+            const d = Math.floor(uptimeSec / 86400);
+            const h = Math.floor((uptimeSec % 86400) / 3600);
+            const m = Math.floor((uptimeSec % 3600) / 60);
+            $('uptime').textContent = d + 'd ' + h + 'h ' + m + 'm';
+            $('reqCount').textContent = reqCount;
+            $('successRate').textContent = reqCount > 0 ? '100%' : '--';
+        }
+
+        async function sendChat() {
+            const input = $('chatInput');
+            const text = input.value.trim();
+            if (!text) return;
+            const messagesDiv = $('chatMessages');
+            messagesDiv.innerHTML += '<div class="chat-msg user">' + text.replace(/</g,'&lt;') + '</div>';
+            input.value = '';
+            messagesDiv.innerHTML += '<div class="chat-msg assistant" id="waitingMsg"><em>Thinking...</em></div>';
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            reqCount++;
+            addLog('Chat request sent', 'info');
+            refreshDashboard();
+            try {
+                const r = await fetch(BASE + '/ask?q=' + encodeURIComponent(text));
+                const jobId = await r.text();
+                let result = null;
+                for (let i = 0; i < 200; i++) {
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+                    const rr = await fetch(BASE + '/result?id=' + jobId);
+                    const rt = await rr.text();
+                    if (rt !== 'STILL_WORKING') { result = rt; break; }
+                }
+                const waiting = $('waitingMsg');
+                if (waiting) waiting.remove();
+                if (result) {
+                    messagesDiv.innerHTML += '<div class="chat-msg assistant">' + result.replace(/</g,'&lt;').replace(/\n/g,'<br>') + '</div>';
+                    addLog('Response received', 'success');
+                } else {
+                    messagesDiv.innerHTML += '<div class="chat-msg assistant"><em>Timeout - still working, check /result?id=' + jobId + '</em></div>';
+                    addLog('Timeout waiting for response', 'error');
+                }
+            } catch(e) {
+                const waiting = $('waitingMsg');
+                if (waiting) waiting.remove();
+                messagesDiv.innerHTML += '<div class="chat-msg assistant"><em>Error: ' + e.message.replace(/</g,'&lt;') + '</em></div>';
+                addLog('Error: ' + e.message, 'error');
+            }
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function updateClock() {
+            $('clock').textContent = new Date().toLocaleTimeString();
+        }
+
+        setInterval(checkStatus, 5000);
+        setInterval(refreshDashboard, 10000);
+        setInterval(updateClock, 1000);
+        checkStatus();
+        refreshDashboard();
+        updateClock();
+        addLog('NEMAPI Bridge admin panel loaded', 'info');
     </script>
 </body>
-</html>
-        """.trimIndent()
+</html>"""
     }
 }
