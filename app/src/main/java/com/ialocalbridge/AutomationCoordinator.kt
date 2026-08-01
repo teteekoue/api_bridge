@@ -49,15 +49,15 @@ class AutomationCoordinator(private val context: Context) {
         if (!isRunning) return "Annulé"
         ClipboardHelper.copyToClipboard(context, question)
         service.clickAt(coords.textFieldX, coords.textFieldY)
-        delay(800)
+        delay(500)
         if (!isRunning) return "Annulé"
         service.pasteText()
-        delay(500)
+        delay(300)
 
         // 2. Fermer le clavier (Bouton Back)
         if (!isRunning) return "Annulé"
         service.closeKeyboard()
-        delay(1000)
+        delay(500)
 
         // 3. Appuyer sur Envoyer
         if (!isRunning) return "Annulé"
@@ -78,7 +78,7 @@ class AutomationCoordinator(private val context: Context) {
 
             // On tente de cliquer sur le bouton copier
             service.clickAt(coords.copyButtonX, coords.copyButtonY)
-            delay(1500)
+            delay(1000)
             if (!isRunning) break
 
             val newClipboard = ClipboardHelper.getFromClipboard(context)
@@ -88,7 +88,7 @@ class AutomationCoordinator(private val context: Context) {
             }
 
             Log.d(TAG, "Tentative $attempts : pas encore de nouvelle réponse complète...")
-            delay(2000) 
+            delay(1000) 
         }
 
         isRunning = false

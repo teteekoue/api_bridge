@@ -1,13 +1,14 @@
 package com.ialocalbridge.utils
 
 object WebInterface {
-    fun getHtml(ipAddress: String, port: Int): String {
+    fun getHtml(ipAddress: String, port: Int, streamEnabled: Boolean, totalRequests: Long, totalPromptTokens: Long, totalCompletionTokens: Long): String {
+        val initStream = if (streamEnabled) "true" else "false"
         return """<!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DS Free API - Admin Panel</title>
+    <title>NEMAPI Bridge - Admin Panel</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>N</text></svg>">
     <style>
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -15,8 +16,7 @@ object WebInterface {
             --background:#0f1117;--foreground:#e1e4ed;--card:#1a1d27;--card-foreground:#e1e4ed;
             --primary:#6366f1;--primary-foreground:#ffffff;--muted:#252836;--muted-foreground:#8b8fa3;
             --border:#2a2d3a;--ring:#6366f1;--radius:0.75rem;--destructive:#ef4444;
-            --success:#22c55e;--warning:#f59e0b;--sidebar:#1a1d27;--sidebar-foreground:#e1e4ed;
-            --sidebar-primary:#6366f1;--sidebar-accent:#252836;--font-sans:'Inter',system-ui,-apple-system,sans-serif;
+            --success:#22c55e;--warning:#f59e0b;--sidebar:#1a1d27;--font-sans:'Inter',system-ui,-apple-system,sans-serif;
         }
         body{font-family:var(--font-sans);background:var(--background);color:var(--foreground);display:flex;min-height:100vh;line-height:1.5;font-size:14px}
         .sidebar{width:220px;background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100}
@@ -55,7 +55,6 @@ object WebInterface {
         .btn-primary{background:var(--primary);color:var(--primary-foreground);border-color:var(--primary)}
         .btn-primary:hover{background:#5558e6}
         .btn-sm{padding:4px 10px;font-size:12px}
-        .btn-danger{background:var(--destructive);color:#fff;border-color:var(--destructive)}
         .btn-ghost{background:transparent;border-color:transparent;color:var(--muted-foreground)}
         .btn-ghost:hover{background:var(--muted);color:var(--foreground)}
         table{width:100%;border-collapse:collapse}
@@ -76,15 +75,13 @@ object WebInterface {
         .code-block{background:var(--muted);border:1px solid var(--border);border-radius:6px;padding:12px 16px;font-family:'JetBrains Mono','Fira Code',monospace;font-size:12px;color:var(--foreground);overflow-x:auto;white-space:pre-wrap;word-break:break-all}
         .flex-row{display:flex;align-items:center;gap:8px}
         .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-        .mb-4{margin-bottom:16px}
-        .mb-2{margin-bottom:8px}
-        .mt-2{margin-top:8px}
-        .chat-container{border:1px solid var(--border);border-radius:var(--radius);background:var(--card);display:flex;flex-direction:column;height:calc(100vh - 180px);min-height:400px}
-        .chat-messages{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:12px}
-        .chat-msg{max-width:82%;padding:10px 14px;border-radius:10px;font-size:13px;line-height:1.6}
-        .chat-msg.user{align-self:flex-end;background:var(--primary);color:#fff;border-bottom-right-radius:3px}
-        .chat-msg.assistant{align-self:flex-start;background:var(--muted);color:var(--foreground);border-bottom-left-radius:3px}
-        .chat-input-area{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px}
+        .mb-2{margin-bottom:8px}.mb-4{margin-bottom:16px}.mt-2{margin-top:8px}
+        .toggle{position:relative;display:inline-block;width:40px;height:22px}
+        .toggle input{opacity:0;width:0;height:0}
+        .toggle-slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:var(--muted);border-radius:22px;transition:0.2s;border:1px solid var(--border)}
+        .toggle-slider:before{content:"";position:absolute;height:16px;width:16px;left:2px;bottom:2px;background:var(--muted-foreground);border-radius:50%;transition:0.2s}
+        .toggle input:checked+.toggle-slider{background:var(--primary);border-color:var(--primary)}
+        .toggle input:checked+.toggle-slider:before{transform:translateX(18px);background:#fff}
         .log-viewer{background:var(--muted);border:1px solid var(--border);border-radius:var(--radius);padding:16px;max-height:400px;overflow-y:auto;font-family:'JetBrains Mono','Fira Code',monospace;font-size:12px;line-height:1.8;color:var(--foreground)}
         .log-entry{display:flex;gap:12px;padding:2px 0}
         .log-time{color:var(--muted-foreground);flex-shrink:0}
@@ -92,14 +89,14 @@ object WebInterface {
         .log-success{color:var(--success)}
         .log-error{color:var(--destructive)}
         .log-warn{color:var(--warning)}
-        @media(max-width:768px){.sidebar{display:none}.main{margin-left:0}}
+        @media(max-width:768px){.sidebar{display:none}.main{margin-left:0}.stats-grid{grid-template-columns:1fr}}
     </style>
 </head>
 <body>
 <aside class="sidebar">
     <div class="sidebar-header">
         <div class="logo">N</div>
-        <span class="title">DS Free API</span>
+        <span class="title">NEMAPI Bridge</span>
     </div>
     <nav class="nav">
         <button class="nav-item active" data-page="dashboard">
@@ -131,13 +128,13 @@ object WebInterface {
             <div class="stats-grid">
                 <div class="stat-card"><div class="stat-info"><span class="card-title">Uptime</span><span class="card-value" id="uptime">--</span></div><div class="card-icon blue"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div></div>
                 <div class="stat-card"><div class="stat-info"><span class="card-title">Total Requests</span><span class="card-value" id="reqCount">0</span></div><div class="card-icon green"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div></div>
-                <div class="stat-card"><div class="stat-info"><span class="card-title">Status</span><span class="card-value" id="apiStatus">--</span></div><div class="card-icon amber"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div></div>
-                <div class="stat-card"><div class="stat-info"><span class="card-title">Endpoint</span><span class="card-value" style="font-size:16px;">/v1</span></div><div class="card-icon red"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div></div>
+                <div class="stat-card"><div class="stat-info"><span class="card-title">Prompt Tokens</span><span class="card-value" id="promptTokens">0</span></div><div class="card-icon blue"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg></div></div>
+                <div class="stat-card"><div class="stat-info"><span class="card-title">Completion Tokens</span><span class="card-value" id="compTokens">0</span></div><div class="card-icon green"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg></div></div>
             </div>
             <div class="card">
-                <div class="card-header"><span class="card-title">Quick Test</span></div>
+                <div class="card-header"><span class="card-title">Quick Test</span><span class="badge" id="streamBadge">Stream ON</span></div>
                 <div class="input-group mb-2"><input class="input" id="quickPrompt" placeholder="Type a test prompt..." onkeydown="if(event.key==='Enter')quickTest()"><button class="btn btn-primary" onclick="quickTest()">Send</button></div>
-                <div id="quickResult" class="code-block" style="display:none;margin-top:8px;"></div>
+                <div id="quickResult" class="code-block" style="display:none;margin-top:8px;max-height:300px;overflow-y:auto;"></div>
             </div>
         </div>
         <div id="page-models" class="page">
@@ -147,6 +144,13 @@ object WebInterface {
             </div>
         </div>
         <div id="page-config" class="page">
+            <div class="card">
+                <div class="card-header"><span class="card-title">Streaming</span></div>
+                <div class="flex-row" style="justify-content:space-between;">
+                    <div><strong>Simulate SSE Stream</strong><br><span class="text-muted">Activez pour compatibilite avec Qwen Code, Cursor, etc.</span></div>
+                    <label class="toggle"><input type="checkbox" id="streamToggle" $initStream checked onchange="toggleStream()"><span class="toggle-slider"></span></label>
+                </div>
+            </div>
             <div class="card">
                 <div class="card-header"><span class="card-title">Server Configuration</span></div>
                 <div class="grid-2">
@@ -158,30 +162,26 @@ object WebInterface {
                 <div class="code-block">POST /v1/chat/completions
 GET  /v1/models
 GET  /status
-POST /ask</div>
+GET  /stats
+POST /config</div>
             </div>
             <div class="card">
                 <div class="card-header"><span class="card-title">Connection String</span></div>
-                <div class="code-block">curl http://${ipAddress}:${port}/v1/chat/completions -H "Content-Type: application/json" -d '{"model":"deepseek-chat","messages":[{"role":"user","content":"Hello"}]}'</div>
-            </div>
-            <div class="card">
-                <div class="card-header"><span class="card-title">Calibration Status</span><span id="calibBadge" class="badge badge-outline">Unknown</span></div>
-                <p class="text-muted">Calibration is managed on-device via the floating button overlay.</p>
+                <div class="code-block" id="connString">curl http://${ipAddress}:${port}/v1/chat/completions -H "Content-Type: application/json" -d '{"model":"deepseek-chat","messages":[{"role":"user","content":"Hello"}]}'</div>
             </div>
         </div>
         <div id="page-logs" class="page">
             <div class="card">
                 <div class="card-header"><span class="card-title">System Logs</span><div class="flex-row"><button class="btn btn-sm" onclick="clearLogs()">Clear</button><button class="btn btn-sm" onclick="exportLogs()">Export</button></div></div>
-                <div class="log-viewer" id="logsContainer"><div class="log-entry"><span class="log-time">--:--:--</span><span class="log-info">System started. Admin panel loaded.</span></div></div>
+                <div class="log-viewer" id="logsContainer"><div class="log-entry"><span class="log-time">--:--:--</span><span class="log-info">NEMAPI Bridge admin panel ready.</span></div></div>
             </div>
         </div>
     </div>
 </div>
 <script>
-const BASE = window.location.origin;
-let reqCount = 0;
-let startTime = Date.now();
-const logs = [];
+const BASE=window.location.origin;
+let streamEnabled=$initStream;
+const logs=[];
 
 function E(id){return document.getElementById(id)}
 
@@ -194,7 +194,6 @@ document.querySelectorAll('.nav-item').forEach(btn=>{
         E('page-'+page).classList.add('active');
         E('pageTitle').textContent=btn.textContent.trim();
         if(page==='models')loadModels();
-        if(page==='dashboard')refreshDashboard();
     })
 });
 
@@ -214,17 +213,31 @@ function exportLogs(){
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='nemapi-logs.txt';a.click()
 }
 
+async function fetchStats(){
+    try{
+        const r=await fetch(BASE+'/stats');
+        const d=await r.json();
+        E('reqCount').textContent=d.total_requests;
+        E('promptTokens').textContent=d.total_prompt_tokens.toLocaleString();
+        E('compTokens').textContent=d.total_completion_tokens.toLocaleString();
+        const s=Math.floor(d.uptime_seconds);
+        const days=Math.floor(s/86400),hrs=Math.floor((s%86400)/3600),min=Math.floor((s%3600)/60);
+        E('uptime').textContent=days+'d '+hrs+'h '+min+'m';
+        streamEnabled=d.stream_enabled;
+        E('streamToggle').checked=streamEnabled;
+        E('streamBadge').textContent=streamEnabled?'Stream ON':'Stream OFF';
+        E('streamBadge').className=streamEnabled?'badge badge-success':'badge badge-outline';
+    }catch(e){}
+}
+
 async function checkStatus(){
     try{
         const r=await fetch(BASE+'/status');
-        const status=await r.text();
-        const dot=E('statusDot'),label=E('statusLabel'),calib=E('calibBadge'),apiSt=E('apiStatus');
-        if(status.includes('Ready')){
-            dot.className='status-dot online';label.textContent='Online';calib.textContent='Ready';calib.className='badge badge-success';apiSt.textContent='Ready'
-        }else{
-            dot.className='status-dot offline';label.textContent='Disabled';calib.textContent='Not Calibrated';calib.className='badge badge-danger';apiSt.textContent='Disabled'
-        }
-    }catch(e){E('apiStatus').textContent='Offline'}
+        const d=await r.json();
+        const dot=E('statusDot'),label=E('statusLabel');
+        if(d.status.includes('Ready')){dot.className='status-dot online';label.textContent='Online'}
+        else{dot.className='status-dot offline';label.textContent='Disabled'}
+    }catch(e){E('statusLabel').textContent='Offline'}
 }
 
 async function loadModels(){
@@ -232,17 +245,18 @@ async function loadModels(){
         const r=await fetch(BASE+'/v1/models');
         const data=await r.json();
         E('modelsTable').innerHTML=data.data.map(m=>'<tr><td><strong>'+m.id+'</strong></td><td>'+m.object+'</td><td>'+m.owned_by+'</td><td>'+new Date(m.created*1000).toLocaleDateString()+'</td></tr>').join('')
-    }catch(e){E('modelsTable').innerHTML='<tr><td colspan="4" style="color:var(--destructive)">Failed to load models</td></tr>'}
+    }catch(e){E('modelsTable').innerHTML='<tr><td colspan="4" style="color:var(--destructive)">Failed to load</td></tr>'}
 }
 
-function refreshDashboard(){
-    const s=Math.floor((Date.now()-startTime)/1000);
-    const d=Math.floor(s/86400),h=Math.floor((s%86400)/3600),m=Math.floor((s%3600)/60);
-    E('uptime').textContent=d+'d '+h+'h '+m+'m';
-    E('reqCount').textContent=reqCount
+async function toggleStream(){
+    streamEnabled=E('streamToggle').checked;
+    try{
+        await fetch(BASE+'/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({stream_enabled:streamEnabled})});
+        E('streamBadge').textContent=streamEnabled?'Stream ON':'Stream OFF';
+        E('streamBadge').className=streamEnabled?'badge badge-success':'badge badge-outline';
+        addLog('Stream '+(streamEnabled?'enabled':'disabled'),'info')
+    }catch(e){addLog('Config update failed','error')}
 }
-
-function updateClock(){E('clock').textContent=new Date().toLocaleTimeString()}
 
 async function quickTest(){
     const input=E('quickPrompt'),text=input.value.trim();
@@ -251,18 +265,18 @@ async function quickTest(){
     resultDiv.style.display='block';
     resultDiv.textContent='Sending...';
     input.disabled=true;
-    reqCount++;refreshDashboard();
-    addLog('API test: '+text.substring(0,50),'info');
+    addLog('API test: '+text.substring(0,60),'info');
     try{
         const r=await fetch(BASE+'/v1/chat/completions',{
             method:'POST',headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({model:'deepseek-chat',messages:[{role:'user',content:text}]})
+            body:JSON.stringify({model:'deepseek-chat',messages:[{role:'user',content:text}],stream:false})
         });
         const data=await r.json();
         if(data.choices&&data.choices[0]){
             const content=data.choices[0].message.content;
             resultDiv.textContent=content;
-            addLog('Response received ('+content.length+' chars)','success')
+            const usage=data.usage;
+            addLog('Response: '+(content?content.length:0)+' chars | tokens: '+(usage?usage.total_tokens:'?'),'success')
         }else if(data.error){
             resultDiv.textContent='Error: '+data.error;
             addLog('API error: '+data.error,'error')
@@ -271,13 +285,16 @@ async function quickTest(){
         resultDiv.textContent='Error: '+e.message;
         addLog('Error: '+e.message,'error')
     }
-    input.disabled=false;input.focus()
+    input.disabled=false;input.focus();
+    fetchStats()
 }
 
+function updateClock(){E('clock').textContent=new Date().toLocaleTimeString()}
+
+setInterval(fetchStats,3000);
 setInterval(checkStatus,5000);
-setInterval(refreshDashboard,10000);
 setInterval(updateClock,1000);
-checkStatus();refreshDashboard();updateClock();
+fetchStats();checkStatus();updateClock();
 addLog('NEMAPI Bridge admin panel ready','info');
 </script>
 </body>
