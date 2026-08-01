@@ -25,10 +25,10 @@
 - [x] Page Chat integree
 
 ## Phase 4 : GitHub Actions
-- [ ] Creer .github/workflows/build.yml
-- [ ] Configurer build APK automatique
-- [ ] Push avec token sur main
+- [x] Creer .github/workflows/build.yml
+- [x] Configurer build APK automatique
+- [x] Push avec token sur main
 
 ## Phase 5 : Tests & Livraison
-- [ ] Verifier compilation
-- [ ] Commit + push final
+- [ ] Verifier compilation (GitHub Actions en cours)
+- [x] Commit + push final
