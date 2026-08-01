@@ -17,6 +17,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.util.UUID
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 class LocalApiServer(private val port: Int, private val context: Context) : NanoHTTPD(null, port) {
 
@@ -24,14 +26,7 @@ class LocalApiServer(private val port: Int, private val context: Context) : Nano
     private val fileUploader = FileUploader()
     private val mainHandler = Handler(Looper.getMainLooper())
     private val TAG = "LocalApiServer"
-    
-    private val jobs = HashMap<String, JobStatus>()
-
-    data class JobStatus(
-        val status: String,
-        val result: String? = null,
-        val timestamp: Long = System.currentTimeMillis()
-    )
+    private val TIMEOUT_SECONDS = 180L
 
     init {
         val tempDir = File(context.cacheDir, "nanohttpd_temp")
@@ -57,116 +52,127 @@ class LocalApiServer(private val port: Int, private val context: Context) : Nano
 
         return try {
             val response = when (uri) {
-                "/ask" -> handleAskRequest(session)
-                "/upload" -> handleUploadRequest(session)
-                "/ask-with-file" -> handleAskWithFileRequest(session)
-                "/result" -> {
-                    val jobId = session.parameters["id"]?.get(0)
-                    val job = jobs[jobId]
-                    val text = when {
-                        jobId == null -> "Erreur: ID manquant"
-                        job == null -> "Erreur: Job introuvable"
-                        job.status == "pending" -> "STILL_WORKING"
-                        else -> job.result ?: "Erreur inconnue"
-                    }
-                    newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, text)
-                }
+                "/v1/models" -> handleModelsRequest()
+                "/v1/chat/completions" -> handleChatCompletionsDirect(session)
                 "/status" -> {
                     val isServiceActive = ClickAccessibilityService.instance != null
                     val status = if (isServiceActive) "Ready" else "Accessibility Service Disabled"
                     newFixedLengthResponse(status)
                 }
+                "/ask" -> handleAskDirect(session)
+                "/upload" -> handleUploadRequest(session)
                 "/stop" -> {
                     mainHandler.post {
-                        runBlocking {
-                            coordinator.stopGeneration()
-                        }
+                        runBlocking { coordinator.stopGeneration() }
                     }
                     newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, "STOP_SENT")
                 }
-                "/v1/models" -> handleModelsRequest()
-                "/v1/chat/completions" -> handleChatCompletionsRequest(session)
-                else -> newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found")
+                else -> newFixedLengthResponse(Response.Status.NOT_FOUND, "application/json", "{\"error\":\"Not Found\"}")
             }
             addCORSHeaders(response)
             response
         } catch (e: Exception) {
             Log.e(TAG, "Serve Exception", e)
-            val response = newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "Crash: ${e.message}")
+            val response = jsonError(Response.Status.INTERNAL_ERROR, "Crash: ${e.message}")
             addCORSHeaders(response)
             response
         }
     }
 
-    private fun handleAskRequest(session: IHTTPSession): Response {
+    private fun handleAskDirect(session: IHTTPSession): Response {
         val params = if (session.method == Method.POST) {
             val files = HashMap<String, String>()
-            try { session.parseBody(files) } catch (e: Exception) {}
+            try { session.parseBody(files) } catch (_: Exception) {}
             session.parameters
         } else {
             session.parameters
         }
         val q = params["q"]?.get(0) ?: params["question"]?.get(0)
-        return if (q != null) startAutomationJob(q) 
-        else newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "Manquant: q")
+        if (q == null) return jsonError(Response.Status.BAD_REQUEST, "Missing 'q' parameter")
+        val result = executeBlocking(q)
+        return newFixedLengthResponse(Response.Status.OK, "text/plain; charset=utf-8", result)
     }
 
-    private fun handleUploadRequest(session: IHTTPSession): Response {
-        if (session.method != Method.POST) return newFixedLengthResponse(Response.Status.METHOD_NOT_ALLOWED, MIME_PLAINTEXT, "POST requis")
-        val files = HashMap<String, String>()
-        session.parseBody(files)
-        val temp = files["file"]
-        val name = session.parameters["file"]?.get(0) ?: "file.bin"
-
-        return if (temp != null) {
-            val res = fileUploader.uploadWithFallback(File(temp), name)
-            if (res.success) {
-                val json = "{\"success\":true, \"url\":\"${res.url}\"}"
-                newFixedLengthResponse(Response.Status.OK, "application/json", json)
-            } else {
-                newFixedLengthResponse(Response.Status.INTERNAL_ERROR, "application/json", "{\"success\":false, \"error\":\"${res.errorLog}\"}")
+    private fun handleChatCompletionsDirect(session: IHTTPSession): Response {
+        val body = parseBody(session)
+        if (body.isEmpty()) return jsonError(Response.Status.BAD_REQUEST, "Missing request body")
+        return try {
+            val request = JSONObject(body)
+            val messages = request.optJSONArray("messages")
+            if (messages == null || messages.length() == 0) {
+                return jsonError(Response.Status.BAD_REQUEST, "Missing messages array")
             }
-        } else newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "No file")
-    }
-
-    private fun handleAskWithFileRequest(session: IHTTPSession): Response {
-        val files = HashMap<String, String>()
-        session.parseBody(files)
-        val temp = files["file"]
-        val name = session.parameters["file"]?.get(0) ?: "file.bin"
-        val q = session.parameters["q"]?.get(0) ?: session.parameters["question"]?.get(0)
-
-        return if (temp != null) {
-            val res = fileUploader.uploadWithFallback(File(temp), name)
-            if (res.success) {
-                val msg = FileMessageBuilder.build(name, res.url!!, q)
-                startAutomationJob(msg)
-            } else {
-                newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "Upload Failed:\n${res.errorLog}")
+            val model = request.optString("model", "deepseek-chat")
+            val tools = request.optJSONArray("tools")
+            val lastMsg = messages.getJSONObject(messages.length() - 1)
+            var prompt = lastMsg.optString("content", "")
+            if (tools != null && tools.length() > 0) {
+                val toolPrompt = ToolParser.buildToolCallPrompt(tools)
+                prompt = prompt + "\n\n" + toolPrompt
             }
-        } else newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "No file")
+            val rawResult = executeBlocking(prompt)
+            val parsed = ToolParser.parseToolCalls(rawResult)
+            val respObj = JSONObject()
+            respObj.put("id", "chatcmpl-" + UUID.randomUUID().toString().take(8))
+            respObj.put("object", "chat.completion")
+            respObj.put("created", System.currentTimeMillis() / 1000)
+            respObj.put("model", model)
+            val choices = JSONArray()
+            val choice = JSONObject()
+            choice.put("index", 0)
+            val msg = JSONObject()
+            msg.put("role", "assistant")
+            if (parsed != null) {
+                msg.put("content", parsed.remainingText.trim())
+                val tcArr = JSONArray()
+                for (tc in parsed.toolCalls) {
+                    val tco = JSONObject()
+                    tco.put("id", tc.id)
+                    tco.put("type", "function")
+                    val func = JSONObject()
+                    func.put("name", tc.name)
+                    func.put("arguments", tc.arguments)
+                    tco.put("function", func)
+                    tcArr.put(tco)
+                }
+                msg.put("tool_calls", tcArr)
+                choice.put("finish_reason", "tool_calls")
+            } else {
+                msg.put("content", rawResult)
+                choice.put("finish_reason", "stop")
+            }
+            choice.put("message", msg)
+            choices.put(choice)
+            respObj.put("choices", choices)
+            val usage = JSONObject()
+            usage.put("prompt_tokens", 0)
+            usage.put("completion_tokens", 0)
+            usage.put("total_tokens", 0)
+            respObj.put("usage", usage)
+            newFixedLengthResponse(Response.Status.OK, "application/json", respObj.toString(2))
+        } catch (e: Exception) {
+            Log.e(TAG, "Chat error", e)
+            jsonError(Response.Status.BAD_REQUEST, "Invalid JSON: ${e.message}")
+        }
     }
 
-    private fun startAutomationJob(content: String): Response {
-        val jobId = java.util.UUID.randomUUID().toString()
-        jobs[jobId] = JobStatus("pending")
+    private fun executeBlocking(prompt: String): String {
+        val latch = CountDownLatch(1)
+        val resultHolder = StringBuilder()
         mainHandler.post {
             runBlocking {
                 try {
-                    val result = coordinator.processQuestion(content)
-                    jobs[jobId] = JobStatus("completed", result)
+                    val result = coordinator.processQuestion(prompt)
+                    resultHolder.append(result)
                 } catch (e: Exception) {
-                    jobs[jobId] = JobStatus("error", "Error: ${e.message}")
+                    resultHolder.append("ERROR: ${e.message}")
+                } finally {
+                    latch.countDown()
                 }
             }
         }
-        return newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, jobId)
-    }
-
-    private fun addCORSHeaders(response: Response) {
-        response.addHeader("Access-Control-Allow-Origin", "*")
-        response.addHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        response.addHeader("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        latch.await(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        return resultHolder.toString().ifEmpty { "ERROR: Timeout after ${TIMEOUT_SECONDS}s" }
     }
 
     private fun handleModelsRequest(): Response {
@@ -183,92 +189,21 @@ class LocalApiServer(private val port: Int, private val context: Context) : Nano
         return newFixedLengthResponse(Response.Status.OK, "application/json", resp.toString(2))
     }
 
-    private fun handleChatCompletionsRequest(session: IHTTPSession): Response {
-        val body = parseBody(session)
-        if (body.isEmpty()) {
-            return jsonError(Response.Status.BAD_REQUEST, "Missing request body")
-        }
-        return try {
-            val request = JSONObject(body)
-            val messages = request.optJSONArray("messages")
-            if (messages == null || messages.length() == 0) {
-                return jsonError(Response.Status.BAD_REQUEST, "Missing messages array")
+    private fun handleUploadRequest(session: IHTTPSession): Response {
+        if (session.method != Method.POST) return jsonError(Response.Status.METHOD_NOT_ALLOWED, "POST required")
+        val files = HashMap<String, String>()
+        session.parseBody(files)
+        val temp = files["file"]
+        val name = session.parameters["file"]?.get(0) ?: "file.bin"
+        return if (temp != null) {
+            val res = fileUploader.uploadWithFallback(File(temp), name)
+            if (res.success) {
+                val json = "{\"success\":true,\"url\":\"${res.url}\"}"
+                newFixedLengthResponse(Response.Status.OK, "application/json", json)
+            } else {
+                jsonError(Response.Status.INTERNAL_ERROR, res.errorLog)
             }
-            val model = request.optString("model", "deepseek-chat")
-            val tools = request.optJSONArray("tools")
-            val lastMsg = messages.getJSONObject(messages.length() - 1)
-            var prompt = lastMsg.optString("content", "")
-            if (tools != null && tools.length() > 0) {
-                val toolPrompt = ToolParser.buildToolCallPrompt(tools)
-                prompt = prompt + "\n\n" + toolPrompt
-            }
-            val jobId = UUID.randomUUID().toString()
-            jobs[jobId] = JobStatus("pending")
-            mainHandler.post {
-                runBlocking {
-                    try {
-                        val result = coordinator.processQuestion(prompt)
-                        val parsed = ToolParser.parseToolCalls(result)
-                        val respObj = JSONObject()
-                        respObj.put("id", "chatcmpl-" + jobId.take(8))
-                        respObj.put("object", "chat.completion")
-                        respObj.put("created", System.currentTimeMillis() / 1000)
-                        respObj.put("model", model)
-                        val choices = JSONArray()
-                        val choice = JSONObject()
-                        choice.put("index", 0)
-                        val msg = JSONObject()
-                        msg.put("role", "assistant")
-                        if (parsed != null) {
-                            msg.put("content", parsed.remainingText)
-                            val tcArr = JSONArray()
-                            for (tc in parsed.toolCalls) {
-                                val tco = JSONObject()
-                                tco.put("id", tc.id)
-                                tco.put("type", "function")
-                                val func = JSONObject()
-                                func.put("name", tc.name)
-                                func.put("arguments", tc.arguments)
-                                tco.put("function", func)
-                                tcArr.put(tco)
-                            }
-                            msg.put("tool_calls", tcArr)
-                            choice.put("finish_reason", "tool_calls")
-                        } else {
-                            msg.put("content", result)
-                            choice.put("finish_reason", "stop")
-                        }
-                        choice.put("message", msg)
-                        choices.put(choice)
-                        respObj.put("choices", choices)
-                        jobs[jobId] = JobStatus("completed", respObj.toString(2))
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Chat error", e)
-                        jobs[jobId] = JobStatus("error", "{\"error\":\"${e.message}\"}")
-                    }
-                }
-            }
-            val pending = JSONObject()
-            pending.put("id", "chatcmpl-" + jobId.take(8))
-            pending.put("object", "chat.completion")
-            pending.put("created", System.currentTimeMillis() / 1000)
-            pending.put("model", model)
-            pending.put("status", "processing")
-            pending.put("job_id", jobId)
-            val pChoices = JSONArray()
-            val pChoice = JSONObject()
-            pChoice.put("index", 0)
-            val pMsg = JSONObject()
-            pMsg.put("role", "assistant")
-            pMsg.put("content", "")
-            pChoice.put("message", pMsg)
-            pChoice.put("finish_reason", "")
-            pChoices.put(pChoice)
-            pending.put("choices", pChoices)
-            newFixedLengthResponse(Response.Status.OK, "application/json", pending.toString(2))
-        } catch (e: Exception) {
-            jsonError(Response.Status.BAD_REQUEST, "Invalid JSON: ${e.message}")
-        }
+        } else jsonError(Response.Status.BAD_REQUEST, "No file")
     }
 
     private fun parseBody(session: IHTTPSession): String {
@@ -286,5 +221,11 @@ class LocalApiServer(private val port: Int, private val context: Context) : Nano
         val err = JSONObject()
         err.put("error", message)
         return newFixedLengthResponse(status, "application/json", err.toString())
+    }
+
+    private fun addCORSHeaders(response: Response) {
+        response.addHeader("Access-Control-Allow-Origin", "*")
+        response.addHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        response.addHeader("Access-Control-Allow-Headers", "Content-Type, Authorization")
     }
 }
